@@ -39,17 +39,41 @@ type GenerateOpts = {
   rng?: () => number;
 };
 
+function weightedPick(
+  pool: MenuCandidate[],
+  seasonalNames: Set<string>,
+  rng: () => number,
+): MenuCandidate {
+  const weighted = pool.map((r) => ({
+    recipe: r,
+    weight:
+      r.main_ingredient_normalized && seasonalNames.has(r.main_ingredient_normalized)
+        ? 2
+        : 1,
+  }));
+  const total = weighted.reduce((sum, w) => sum + w.weight, 0);
+  let dart = rng() * total;
+  for (const w of weighted) {
+    dart -= w.weight;
+    if (dart <= 0) return w.recipe;
+  }
+  return weighted[weighted.length - 1].recipe;
+}
+
 /**
- * Selecciona UNA receta aplicando reglas de variedad:
- *   - Recetas con ingrediente principal de temporada: peso x2.
- *   - Excluye recetas cuyo ingrediente principal aparezca en los 2 días previos.
- *   - Excluye recetas cuya categoría ya esté 2 veces en la semana.
- *   - Si tras filtrar el pool queda vacío, relaja primero la categoría y luego todo.
+ * Selecciona UNA receta aplicando reglas de variedad. Orden de preferencia:
+ *   1. Sin repetir receta + sin repetir ingrediente principal en 2 días + máx 2 por categoría.
+ *   2. Sin repetir receta + sin repetir ingrediente principal en 2 días (relaja categoría).
+ *   3. Sin repetir receta (relaja también el ingrediente principal).
+ *   4. Permite repetir receta — solo cuando no hay alternativa (recetario corto).
+ *
+ * Recetas con ingrediente principal de temporada tienen peso x2 en cualquier nivel.
  */
 function pickOne(
   candidates: MenuCandidate[],
   alreadyPickedMain: (string | null)[],
   alreadyPickedCategoryCounts: Map<string, number>,
+  alreadyPickedRecipeIds: Set<string>,
   seasonalNames: Set<string>,
   rng: () => number,
   excludeRecipeId?: string,
@@ -58,46 +82,34 @@ function pickOne(
 
   const recentMain = new Set(alreadyPickedMain.slice(-2).filter(Boolean) as string[]);
 
-  function withWeight(pool: MenuCandidate[]): { recipe: MenuCandidate; weight: number }[] {
-    return pool.map((r) => ({
-      recipe: r,
-      weight:
-        r.main_ingredient_normalized && seasonalNames.has(r.main_ingredient_normalized)
-          ? 2
-          : 1,
-    }));
-  }
+  const noRepeat = candidates.filter(
+    (r) => r.id !== excludeRecipeId && !alreadyPickedRecipeIds.has(r.id),
+  );
 
-  const baseFiltered = candidates.filter((r) => r.id !== excludeRecipeId);
-
-  const strict = baseFiltered.filter((r) => {
+  // 1. Estricto
+  const strict = noRepeat.filter((r) => {
     if (r.main_ingredient_normalized && recentMain.has(r.main_ingredient_normalized)) return false;
     const cat = r.main_ingredient_category ?? "otro";
     if ((alreadyPickedCategoryCounts.get(cat) ?? 0) >= 2) return false;
     return true;
   });
+  if (strict.length > 0) return weightedPick(strict, seasonalNames, rng);
 
-  let pool = strict;
-  if (pool.length === 0) {
-    // Relaja categoría
-    pool = baseFiltered.filter((r) => {
-      if (r.main_ingredient_normalized && recentMain.has(r.main_ingredient_normalized)) return false;
-      return true;
-    });
-  }
-  if (pool.length === 0) {
-    // Relaja todo
-    pool = baseFiltered.length > 0 ? baseFiltered : candidates;
-  }
+  // 2. Relaja categoría
+  const noCat = noRepeat.filter((r) => {
+    if (r.main_ingredient_normalized && recentMain.has(r.main_ingredient_normalized)) return false;
+    return true;
+  });
+  if (noCat.length > 0) return weightedPick(noCat, seasonalNames, rng);
 
-  const weighted = withWeight(pool);
-  const total = weighted.reduce((sum, w) => sum + w.weight, 0);
-  let dart = rng() * total;
-  for (const w of weighted) {
-    dart -= w.weight;
-    if (dart <= 0) return w.recipe;
-  }
-  return weighted[weighted.length - 1].recipe;
+  // 3. Solo evita repetir receta
+  if (noRepeat.length > 0) return weightedPick(noRepeat, seasonalNames, rng);
+
+  // 4. Último recurso: permite repetir receta (recetario corto)
+  const allowRepeat = candidates.filter((r) => r.id !== excludeRecipeId);
+  if (allowRepeat.length > 0) return weightedPick(allowRepeat, seasonalNames, rng);
+
+  return weightedPick(candidates, seasonalNames, rng);
 }
 
 export function generateWeeklyMenu({
@@ -111,14 +123,23 @@ export function generateWeeklyMenu({
   const result: MenuCandidate[] = [];
   const mainHistory: (string | null)[] = [];
   const categoryCounts = new Map<string, number>();
+  const pickedIds = new Set<string>();
 
   for (let i = 0; i < days; i++) {
-    const picked = pickOne(recipes, mainHistory, categoryCounts, seasonalNormalizedNames, rng);
+    const picked = pickOne(
+      recipes,
+      mainHistory,
+      categoryCounts,
+      pickedIds,
+      seasonalNormalizedNames,
+      rng,
+    );
     if (!picked) break;
     result.push(picked);
     mainHistory.push(picked.main_ingredient_normalized);
     const cat = picked.main_ingredient_category ?? "otro";
     categoryCounts.set(cat, (categoryCounts.get(cat) ?? 0) + 1);
+    pickedIds.add(picked.id);
   }
 
   return result;
@@ -148,16 +169,19 @@ export function pickReplacementForDay({
     .map((r) => r.main_ingredient_normalized);
 
   const categoryCounts = new Map<string, number>();
+  const otherIds = new Set<string>();
   for (let i = 0; i < currentMenu.length; i++) {
     if (i === dayIndex) continue;
     const cat = currentMenu[i]?.main_ingredient_category ?? "otro";
     categoryCounts.set(cat, (categoryCounts.get(cat) ?? 0) + 1);
+    if (currentMenu[i]?.id) otherIds.add(currentMenu[i].id);
   }
 
   return pickOne(
     recipes,
     mainHistory,
     categoryCounts,
+    otherIds,
     seasonalNormalizedNames,
     rng,
     excludeRecipeId,
