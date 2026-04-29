@@ -31,7 +31,7 @@ export default async function AppLayout({
         <div className="container flex h-16 items-center justify-between gap-4 px-4">
           <Link
             href="/"
-            className="font-display text-2xl tracking-tight"
+            className="text-lg font-bold tracking-tight"
           >
             Mis Recetas
           </Link>

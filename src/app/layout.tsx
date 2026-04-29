@@ -1,18 +1,12 @@
 import type { Metadata } from "next";
-import { Inter, Playfair_Display } from "next/font/google";
+import { Figtree } from "next/font/google";
 import "./globals.css";
 
-const sans = Inter({
+const figtree = Figtree({
   subsets: ["latin"],
   variable: "--font-sans",
   display: "swap",
-});
-
-const serif = Playfair_Display({
-  subsets: ["latin"],
-  variable: "--font-serif",
-  display: "swap",
-  weight: ["400", "500", "600", "700"],
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
 });
 
 export const metadata: Metadata = {
@@ -26,7 +20,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es" className={`${sans.variable} ${serif.variable}`}>
+    <html lang="es" className={figtree.variable}>
       <body>{children}</body>
     </html>
   );

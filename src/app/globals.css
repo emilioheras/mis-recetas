@@ -61,20 +61,21 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-sans);
-    font-feature-settings: "ss01", "cv11";
   }
-  h1, h2 {
-    font-family: var(--font-serif);
-    letter-spacing: -0.02em;
-    font-weight: 600;
+  h1 {
+    letter-spacing: -0.04em;
+    font-weight: 800;
+  }
+  h2 {
+    letter-spacing: -0.025em;
+    font-weight: 700;
   }
 }
 
 @layer utilities {
   .font-display {
-    font-family: var(--font-serif);
-    letter-spacing: -0.03em;
-    font-weight: 600;
+    letter-spacing: -0.04em;
+    font-weight: 800;
   }
   .font-body {
     font-family: var(--font-sans);
