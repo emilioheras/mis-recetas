@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Pencil, Clock, Users } from "lucide-react";
+import { Pencil, Clock, Users, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getRecipe } from "@/lib/recipes/queries";
+import { getSignedPdfUrl } from "@/lib/recipes/pdf-storage";
 import { UNITS } from "@/lib/ingredients";
 import { DeleteRecipeButton } from "./delete-button";
 
@@ -20,6 +21,8 @@ export default async function RecipeDetailPage({
   const otherIngredients = recipe.ingredients
     .filter((row) => !row.is_main)
     .sort((a, b) => a.position - b.position);
+
+  const pdfSignedUrl = recipe.pdf_url ? await getSignedPdfUrl(recipe.pdf_url) : null;
 
   return (
     <article className="container max-w-3xl py-8">
@@ -60,6 +63,24 @@ export default async function RecipeDetailPage({
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
           />
+        </div>
+      ) : null}
+
+      {pdfSignedUrl ? (
+        <div className="mb-6">
+          <iframe
+            src={pdfSignedUrl}
+            title="PDF de la receta"
+            className="h-[70vh] w-full rounded-lg border"
+          />
+          <a
+            href={pdfSignedUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground underline"
+          >
+            <FileText className="h-3 w-3" /> Abrir PDF en pestaña aparte
+          </a>
         </div>
       ) : null}
 

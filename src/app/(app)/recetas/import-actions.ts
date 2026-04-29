@@ -3,10 +3,15 @@
 import { importFromUrl } from "@/lib/importers/url";
 import { importFromYouTube } from "@/lib/importers/youtube";
 import { extractRecipeFromText } from "@/lib/ai/llm";
+import { uploadRecipePdf } from "@/lib/recipes/pdf-storage";
 import type { RecipeDraft } from "@/lib/recipes/types";
 
 export type ImportResult =
   | { ok: true; draft: RecipeDraft }
+  | { ok: false; error: string };
+
+export type PdfUploadResult =
+  | { ok: true; path: string; filename: string }
   | { ok: false; error: string };
 
 export async function importFromUrlAction(url: string): Promise<ImportResult> {
@@ -39,6 +44,23 @@ export async function importFromYouTubeAction(url: string): Promise<ImportResult
     return {
       ok: false,
       error: err instanceof Error ? err.message : "Error desconocido al importar.",
+    };
+  }
+}
+
+export async function uploadPdfAction(formData: FormData): Promise<PdfUploadResult> {
+  const file = formData.get("file");
+  if (!(file instanceof File)) {
+    return { ok: false, error: "Selecciona un archivo PDF." };
+  }
+
+  try {
+    const { path } = await uploadRecipePdf(file);
+    return { ok: true, path, filename: file.name };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "No se pudo subir el PDF.",
     };
   }
 }

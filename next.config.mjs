@@ -6,6 +6,11 @@ const nextConfig = {
       { protocol: "https", hostname: "img.youtube.com" },
     ],
   },
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "10mb",
+    },
+  },
 };
 
 export default nextConfig;

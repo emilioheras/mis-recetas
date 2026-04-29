@@ -13,6 +13,7 @@ import {
   importFromUrlAction,
   importFromMarkdownAction,
   importFromYouTubeAction,
+  uploadPdfAction,
 } from "../import-actions";
 
 type TabId = "manual" | "url" | "markdown" | "youtube" | "pdf";
@@ -28,7 +29,7 @@ const TABS: Array<{
   { id: "url", label: "Desde URL", icon: Globe, enabled: true },
   { id: "markdown", label: "Desde .md", icon: FileText, enabled: true },
   { id: "youtube", label: "Desde YouTube", icon: Youtube, enabled: true },
-  { id: "pdf", label: "Desde PDF", icon: FilePlus, enabled: false, comingIn: "Fase 6" },
+  { id: "pdf", label: "Desde PDF", icon: FilePlus, enabled: true },
 ];
 
 export function ImportWizard() {
@@ -37,6 +38,8 @@ export function ImportWizard() {
   const [ytUrl, setYtUrl] = useState("");
   const [mdContent, setMdContent] = useState("");
   const [mdFilename, setMdFilename] = useState("");
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [pdfUploaded, setPdfUploaded] = useState<{ path: string; filename: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<RecipeDraft | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -48,6 +51,8 @@ export function ImportWizard() {
     setMdContent("");
     setMdFilename("");
     setYtUrl("");
+    setPdfFile(null);
+    setPdfUploaded(null);
   }
 
   function handleExtract() {
@@ -93,6 +98,27 @@ export function ImportWizard() {
       const result = await importFromYouTubeAction(ytUrl);
       if (result.ok) {
         setDraft(result.draft);
+      } else {
+        setError(result.error);
+      }
+    });
+  }
+
+  function handlePdfFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    setError(null);
+    setPdfFile(file ?? null);
+  }
+
+  function handleUploadPdf() {
+    if (!pdfFile) return;
+    setError(null);
+    const formData = new FormData();
+    formData.set("file", pdfFile);
+    startTransition(async () => {
+      const result = await uploadPdfAction(formData);
+      if (result.ok) {
+        setPdfUploaded({ path: result.path, filename: result.filename });
       } else {
         setError(result.error);
       }
@@ -308,12 +334,64 @@ export function ImportWizard() {
         </>
       ) : null}
 
-      {tab === "pdf" ? (
+      {tab === "pdf" && !pdfUploaded ? (
         <Card>
-          <CardContent className="pt-6 text-sm text-muted-foreground">
-            Disponible próximamente.
+          <CardContent className="space-y-4 pt-6">
+            <div className="grid gap-2">
+              <Label htmlFor="pdf-file">Archivo PDF</Label>
+              <Input
+                id="pdf-file"
+                type="file"
+                accept="application/pdf,.pdf"
+                onChange={handlePdfFile}
+                disabled={isPending}
+              />
+              <p className="text-xs text-muted-foreground">
+                Sube tu PDF (máximo 10 MB). Lo guardaremos en la nube y lo
+                podrás ver embebido al abrir la receta. Después rellenas título,
+                ingredientes y pasos a mano consultando el PDF.
+              </p>
+              {pdfFile ? (
+                <p className="text-xs text-muted-foreground">
+                  Seleccionado: <strong>{pdfFile.name}</strong> (
+                  {Math.round(pdfFile.size / 1024)} KB)
+                </p>
+              ) : null}
+            </div>
+            {error ? (
+              <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                {error}
+              </p>
+            ) : null}
+            <Button onClick={handleUploadPdf} disabled={isPending || !pdfFile}>
+              {isPending ? "Subiendo…" : "Subir y continuar"}
+            </Button>
           </CardContent>
         </Card>
+      ) : null}
+
+      {tab === "pdf" && pdfUploaded ? (
+        <>
+          <p className="rounded-md bg-accent p-3 text-sm">
+            PDF subido: <strong>{pdfUploaded.filename}</strong>. Ahora rellena
+            los datos de la receta consultando el archivo. Cuando guardes,
+            podrás verlo embebido en la pantalla de detalle.
+          </p>
+          <RecipeForm
+            recipeId={null}
+            initial={{
+              title: pdfUploaded.filename.replace(/\.pdf$/i, ""),
+              servings: 2,
+              prep_minutes: null,
+              instructions_md: "",
+              notes: "",
+              main_ingredient_name: "",
+              main_ingredient_category: "otro",
+              ingredients: [],
+            }}
+            source={{ type: "pdf", pdfUrl: pdfUploaded.path }}
+          />
+        </>
       ) : null}
     </div>
   );
