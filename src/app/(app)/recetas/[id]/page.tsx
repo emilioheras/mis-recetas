@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Pencil, Clock, Users, FileText } from "lucide-react";
+import { Pencil, Clock, Users, FileText, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getRecipe } from "@/lib/recipes/queries";
 import { getSignedPdfUrl } from "@/lib/recipes/pdf-storage";
@@ -25,27 +25,34 @@ export default async function RecipeDetailPage({
   const pdfSignedUrl = recipe.pdf_url ? await getSignedPdfUrl(recipe.pdf_url) : null;
 
   return (
-    <article className="container max-w-3xl py-8">
-      <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">{recipe.title}</h1>
-          <div className="mt-2 flex flex-wrap gap-3 text-sm text-muted-foreground">
-            {recipe.main_ingredient ? (
-              <span className="rounded-full bg-accent px-3 py-0.5 text-accent-foreground">
-                {recipe.main_ingredient.name}
-              </span>
-            ) : null}
-            <span className="inline-flex items-center gap-1">
+    <article className="container max-w-3xl px-4 py-10">
+      <Link
+        href="/recetas"
+        className="mb-8 inline-flex items-center gap-1.5 text-xs uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="h-3 w-3" /> Recetas
+      </Link>
+
+      <header className="mb-10 flex flex-wrap items-start justify-between gap-4">
+        <div className="flex-1">
+          {recipe.main_ingredient ? (
+            <p className="mb-3 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+              {recipe.main_ingredient.name}
+            </p>
+          ) : null}
+          <h1 className="text-5xl leading-[1.05] sm:text-6xl">{recipe.title}</h1>
+          <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
               <Users className="h-4 w-4" /> {recipe.servings} comensales
             </span>
             {recipe.prep_minutes ? (
-              <span className="inline-flex items-center gap-1">
+              <span className="inline-flex items-center gap-1.5">
                 <Clock className="h-4 w-4" /> {recipe.prep_minutes} min
               </span>
             ) : null}
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex shrink-0 gap-2">
           <Button asChild variant="outline" size="sm">
             <Link href={`/recetas/${recipe.id}/editar`}>
               <Pencil className="h-4 w-4" /> Editar
@@ -56,7 +63,7 @@ export default async function RecipeDetailPage({
       </header>
 
       {recipe.video_url ? (
-        <div className="mb-6 aspect-video overflow-hidden rounded-lg">
+        <div className="mb-10 aspect-video overflow-hidden rounded-md">
           <iframe
             src={toEmbedUrl(recipe.video_url)}
             className="h-full w-full"
@@ -67,74 +74,80 @@ export default async function RecipeDetailPage({
       ) : null}
 
       {pdfSignedUrl ? (
-        <div className="mb-6">
+        <div className="mb-10">
           <iframe
             src={pdfSignedUrl}
             title="PDF de la receta"
-            className="h-[70vh] w-full rounded-lg border"
+            className="h-[70vh] w-full rounded-md border"
           />
           <a
             href={pdfSignedUrl}
             target="_blank"
             rel="noreferrer"
-            className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground underline"
+            className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:underline"
           >
             <FileText className="h-3 w-3" /> Abrir PDF en pestaña aparte
           </a>
         </div>
       ) : null}
 
-      <section className="mb-6 rounded-lg border bg-card p-4">
-        <h2 className="mb-3 text-lg font-semibold">Ingredientes</h2>
-        <ul className="space-y-1.5 text-sm">
-          {otherIngredients.length === 0 ? (
-            <li className="text-muted-foreground">
-              Solo {recipe.main_ingredient?.name ?? "ingredientes principales"}.
-            </li>
-          ) : (
-            otherIngredients.map((row) => (
-              <li key={row.id} className="flex justify-between gap-3">
-                <span>{row.ingredient.name}</span>
-                <span className="text-muted-foreground">
-                  {row.quantity ? `${row.quantity} ` : ""}
-                  {UNIT_LABEL[row.unit] ?? row.unit}
-                  {row.notes ? ` · ${row.notes}` : ""}
-                </span>
+      <div className="grid gap-12 md:grid-cols-[280px_1fr]">
+        <section>
+          <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground font-sans">
+            Ingredientes
+          </h2>
+          <ul className="space-y-2 text-sm">
+            {otherIngredients.length === 0 ? (
+              <li className="text-muted-foreground">
+                Solo {recipe.main_ingredient?.name ?? "ingredientes principales"}.
               </li>
-            ))
-          )}
-        </ul>
-      </section>
-
-      {recipe.instructions_md ? (
-        <section className="mb-6">
-          <h2 className="mb-3 text-lg font-semibold">Pasos</h2>
-          <pre className="whitespace-pre-wrap font-sans text-sm leading-7">
-            {recipe.instructions_md}
-          </pre>
+            ) : (
+              otherIngredients.map((row) => (
+                <li key={row.id} className="flex items-baseline justify-between gap-3 border-b border-border/40 pb-1.5">
+                  <span className="capitalize">{row.ingredient.name}</span>
+                  <span className="shrink-0 tabular-nums text-muted-foreground">
+                    {row.quantity ? `${row.quantity} ` : ""}
+                    {UNIT_LABEL[row.unit] ?? row.unit}
+                  </span>
+                </li>
+              ))
+            )}
+          </ul>
         </section>
-      ) : null}
 
-      {recipe.source_url ? (
-        <p className="text-xs text-muted-foreground">
-          Fuente:{" "}
-          <a
-            href={recipe.source_url}
-            target="_blank"
-            rel="noreferrer"
-            className="underline"
-          >
-            {recipe.source_url}
-          </a>
-        </p>
-      ) : null}
+        <section>
+          {recipe.instructions_md ? (
+            <>
+              <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground font-sans">
+                Pasos
+              </h2>
+              <div className="whitespace-pre-wrap text-base leading-[1.75]">
+                {recipe.instructions_md}
+              </div>
+            </>
+          ) : null}
 
-      {recipe.notes ? (
-        <section className="mt-6 rounded-lg bg-muted p-4 text-sm">
-          <strong className="block mb-1">Notas</strong>
-          {recipe.notes}
+          {recipe.notes ? (
+            <div className="mt-10 border-l-2 border-primary/40 pl-4 text-sm italic text-muted-foreground">
+              {recipe.notes}
+            </div>
+          ) : null}
+
+          {recipe.source_url ? (
+            <p className="mt-10 text-xs text-muted-foreground">
+              Fuente:{" "}
+              <a
+                href={recipe.source_url}
+                target="_blank"
+                rel="noreferrer"
+                className="underline-offset-4 hover:underline"
+              >
+                {recipe.source_url}
+              </a>
+            </p>
+          ) : null}
         </section>
-      ) : null}
+      </div>
     </article>
   );
 }

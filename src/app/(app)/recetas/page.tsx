@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { listRecipes } from "@/lib/recipes/queries";
 import type { RecipeListItem } from "@/lib/recipes/types";
@@ -16,78 +15,82 @@ export default async function RecipesPage({
   const groups = groupByMainIngredient(recipes);
 
   return (
-    <div className="container max-w-5xl py-8">
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <h1 className="text-3xl font-bold">Recetas</h1>
+    <div className="container max-w-5xl px-4 py-12">
+      <div className="mb-8 flex items-end justify-between gap-4">
+        <div>
+          <p className="mb-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+            Tu colección
+          </p>
+          <h1 className="text-4xl sm:text-5xl">Recetas</h1>
+        </div>
         <Button asChild>
           <Link href="/recetas/nueva">
-            <Plus className="h-4 w-4" /> Nueva receta
+            <Plus className="h-4 w-4" /> Nueva
           </Link>
         </Button>
       </div>
 
-      <form className="mb-6 flex items-center gap-2" action="/recetas">
+      <form className="mb-12 flex items-center gap-2" action="/recetas">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             name="q"
             defaultValue={q ?? ""}
-            placeholder="Buscar por título…"
-            className="pl-9"
+            placeholder="Buscar receta…"
+            className="border-0 border-b border-border bg-transparent pl-9 text-base focus-visible:rounded-none focus-visible:border-foreground focus-visible:ring-0 rounded-none"
           />
         </div>
-        <Button type="submit" variant="secondary">
-          Buscar
-        </Button>
+        {q ? (
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/recetas">Limpiar</Link>
+          </Button>
+        ) : null}
       </form>
 
       {recipes.length === 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              {q ? "Sin resultados" : "Aún no tienes recetas"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {q ? (
-              <p className="text-sm text-muted-foreground">
-                Prueba con otra búsqueda o{" "}
-                <Link href="/recetas" className="underline">
-                  ver todas
-                </Link>
-                .
-              </p>
-            ) : (
-              <Button asChild>
-                <Link href="/recetas/nueva">Crear mi primera receta</Link>
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+        <div className="py-16">
+          <h2 className="mb-3 text-2xl">
+            {q ? "Sin resultados" : "Aún no tienes recetas"}
+          </h2>
+          {q ? (
+            <p className="text-muted-foreground">
+              Prueba con otra búsqueda o{" "}
+              <Link href="/recetas" className="text-primary underline-offset-4 hover:underline">
+                ver todas
+              </Link>
+              .
+            </p>
+          ) : (
+            <Button asChild>
+              <Link href="/recetas/nueva">Crear mi primera receta</Link>
+            </Button>
+          )}
+        </div>
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-14">
           {groups.map((group) => (
             <section key={group.key}>
-              <h2 className="mb-3 text-lg font-semibold capitalize">
+              <h2 className="mb-5 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground font-sans">
                 {group.label}
               </h2>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <ul className="divide-y divide-border/60">
                 {group.recipes.map((recipe) => (
-                  <Link
-                    key={recipe.id}
-                    href={`/recetas/${recipe.id}`}
-                    className="block rounded-lg border bg-card p-4 transition-colors hover:bg-accent"
-                  >
-                    <div className="font-medium">{recipe.title}</div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {recipe.servings} comensales
-                      {recipe.prep_minutes
-                        ? ` · ${recipe.prep_minutes} min`
-                        : ""}
-                    </div>
-                  </Link>
+                  <li key={recipe.id}>
+                    <Link
+                      href={`/recetas/${recipe.id}`}
+                      className="group flex items-baseline justify-between gap-4 py-4 transition-colors"
+                    >
+                      <span className="text-xl font-medium leading-snug transition-colors group-hover:text-primary">
+                        {recipe.title}
+                      </span>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {recipe.servings} pers
+                        {recipe.prep_minutes ? ` · ${recipe.prep_minutes} min` : ""}
+                      </span>
+                    </Link>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </section>
           ))}
         </div>

@@ -1,13 +1,6 @@
 import Link from "next/link";
-import { Sprout, Clock, Users } from "lucide-react";
+import { Sprout, Clock, Users, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { getRecipeOfTheDay } from "@/lib/recipes/queries";
 
 const MONTH_NAMES = [
@@ -21,23 +14,24 @@ export default async function HomePage() {
 
   if (!today) {
     return (
-      <div className="container max-w-4xl py-8">
-        <h1 className="mb-6 text-3xl font-bold">Receta del día</h1>
-        <Card>
-          <CardHeader>
-            <CardTitle>Aún no hay recetas en tu colección</CardTitle>
-            <CardDescription>
-              Empieza añadiendo tus primeras recetas. La &quot;receta del día&quot;
-              {" "}aparecerá aquí, eligiendo automáticamente recetas con
-              ingredientes de temporada.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild>
-              <Link href="/recetas/nueva">Añadir mi primera receta</Link>
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="container max-w-4xl px-4 py-20 sm:py-32">
+        <p className="mb-4 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+          Receta del día · {monthName}
+        </p>
+        <h1 className="mb-6 text-5xl leading-[0.95] sm:text-7xl">
+          Sin recetas
+          <br />
+          todavía.
+        </h1>
+        <p className="mb-10 max-w-lg text-lg text-muted-foreground">
+          Empieza añadiendo tus primeras recetas. La sugerencia diaria se
+          adapta al mes y prioriza ingredientes de temporada.
+        </p>
+        <Button asChild size="lg">
+          <Link href="/recetas/nueva">
+            Añadir mi primera receta <ArrowRight className="h-4 w-4" />
+          </Link>
+        </Button>
       </div>
     );
   }
@@ -45,46 +39,49 @@ export default async function HomePage() {
   const { recipe, seasonality } = today;
 
   return (
-    <div className="container max-w-4xl py-8">
-      <div className="mb-6 flex items-baseline justify-between">
-        <h1 className="text-3xl font-bold">Receta del día</h1>
-        <span className="text-sm capitalize text-muted-foreground">
-          {monthName}
-        </span>
-      </div>
+    <div className="container max-w-5xl px-4 py-12 sm:py-20">
+      <p className="mb-6 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+        Receta del día · {monthName}
+      </p>
 
       <Link
         href={`/recetas/${recipe.id}`}
-        className="block rounded-xl border bg-card p-6 transition-colors hover:bg-accent"
+        className="group block"
       >
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <h2 className="text-2xl font-semibold">{recipe.title}</h2>
-          <SeasonalityBadge seasonality={seasonality} />
-        </div>
+        <h1 className="text-5xl leading-[0.95] transition-colors group-hover:text-primary sm:text-7xl md:text-8xl">
+          {recipe.title}
+        </h1>
 
-        <div className="mt-3 flex flex-wrap gap-3 text-sm text-muted-foreground">
+        <div className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-3 text-sm">
           {recipe.main_ingredient ? (
-            <span className="rounded-full bg-secondary px-3 py-0.5 text-secondary-foreground">
+            <span className="font-medium uppercase tracking-wider">
               {recipe.main_ingredient.name}
             </span>
           ) : null}
-          <span className="inline-flex items-center gap-1">
-            <Users className="h-4 w-4" /> {recipe.servings} comensales
+          <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+            <Users className="h-4 w-4" />
+            {recipe.servings} comensales
           </span>
           {recipe.prep_minutes ? (
-            <span className="inline-flex items-center gap-1">
-              <Clock className="h-4 w-4" /> {recipe.prep_minutes} min
+            <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+              <Clock className="h-4 w-4" />
+              {recipe.prep_minutes} min
             </span>
           ) : null}
+          <SeasonalityBadge seasonality={seasonality} />
         </div>
 
-        {seasonality === "off_season" ? (
-          <p className="mt-4 text-xs text-muted-foreground">
-            Aún no tienes recetas con ingrediente de temporada para este mes.
-            Añade alguna para que la sugerencia sea estacional.
-          </p>
-        ) : null}
+        <p className="mt-12 inline-flex items-center gap-2 text-sm font-medium uppercase tracking-wider text-primary transition-transform group-hover:translate-x-1">
+          Ver receta <ArrowRight className="h-4 w-4" />
+        </p>
       </Link>
+
+      {seasonality === "off_season" ? (
+        <p className="mt-16 max-w-md text-sm text-muted-foreground">
+          Aún no tienes recetas con ingrediente de temporada para este mes.
+          Añade alguna para que la sugerencia sea estacional.
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -96,9 +93,9 @@ function SeasonalityBadge({
 }) {
   if (seasonality === "off_season") return null;
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-primary">
       <Sprout className="h-3 w-3" />
-      {seasonality === "peak" ? "Mes pico de temporada" : "De temporada"}
+      {seasonality === "peak" ? "Pico de temporada" : "De temporada"}
     </span>
   );
 }
