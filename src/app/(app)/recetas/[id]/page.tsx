@@ -43,20 +43,6 @@ export default async function RecipeDetailPage({
         <ArrowLeft className="h-3 w-3" /> Recetas
       </Link>
 
-      {imageSignedUrl ? (
-        <div className="relative mb-10 aspect-[16/9] w-full overflow-hidden rounded-md border bg-muted">
-          <Image
-            src={imageSignedUrl}
-            alt={recipe.title}
-            fill
-            sizes="(max-width: 768px) 100vw, 768px"
-            className="object-cover"
-            unoptimized
-            priority
-          />
-        </div>
-      ) : null}
-
       <header className="mb-10 flex flex-wrap items-start justify-between gap-4">
         <div className="flex-1">
           {recipe.main_ingredient ? (
@@ -97,7 +83,31 @@ export default async function RecipeDetailPage({
         </div>
       ) : null}
 
-      {pdfSignedUrl ? (
+      {imageSignedUrl ? (
+        <div className="mb-10">
+          <div className="relative aspect-[16/9] w-full overflow-hidden rounded-md border bg-muted">
+            <Image
+              src={imageSignedUrl}
+              alt={recipe.title}
+              fill
+              sizes="(max-width: 768px) 100vw, 768px"
+              className="object-cover"
+              unoptimized
+              priority
+            />
+          </div>
+          {pdfSignedUrl ? (
+            <a
+              href={pdfSignedUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:underline"
+            >
+              <FileText className="h-3 w-3" /> Abrir PDF en pestaña aparte
+            </a>
+          ) : null}
+        </div>
+      ) : pdfSignedUrl ? (
         <div className="mb-10">
           <iframe
             src={pdfSignedUrl}
