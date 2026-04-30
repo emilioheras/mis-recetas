@@ -1,9 +1,11 @@
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { Pencil, Clock, Users, FileText, ArrowLeft, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getRecipe } from "@/lib/recipes/queries";
 import { getSignedPdfUrl } from "@/lib/recipes/pdf-storage";
+import { getSignedImageUrl } from "@/lib/recipes/image-storage";
 import { UNITS } from "@/lib/ingredients";
 import { DeleteRecipeButton } from "./delete-button";
 
@@ -27,7 +29,10 @@ export default async function RecipeDetailPage({
       return a.position - b.position;
     });
 
-  const pdfSignedUrl = recipe.pdf_url ? await getSignedPdfUrl(recipe.pdf_url) : null;
+  const [pdfSignedUrl, imageSignedUrl] = await Promise.all([
+    recipe.pdf_url ? getSignedPdfUrl(recipe.pdf_url) : Promise.resolve(null),
+    recipe.image_url ? getSignedImageUrl(recipe.image_url) : Promise.resolve(null),
+  ]);
 
   return (
     <article className="container max-w-3xl px-4 py-10">
@@ -37,6 +42,20 @@ export default async function RecipeDetailPage({
       >
         <ArrowLeft className="h-3 w-3" /> Recetas
       </Link>
+
+      {imageSignedUrl ? (
+        <div className="relative mb-10 aspect-[16/9] w-full overflow-hidden rounded-md border bg-muted">
+          <Image
+            src={imageSignedUrl}
+            alt={recipe.title}
+            fill
+            sizes="(max-width: 768px) 100vw, 768px"
+            className="object-cover"
+            unoptimized
+            priority
+          />
+        </div>
+      ) : null}
 
       <header className="mb-10 flex flex-wrap items-start justify-between gap-4">
         <div className="flex-1">

@@ -39,6 +39,7 @@ export type Recipe = {
   source_url: string | null;
   video_url: string | null;
   pdf_url: string | null;
+  image_url: string | null;
   servings: number;
   prep_minutes: number | null;
   instructions_md: string | null;
@@ -84,4 +85,5 @@ export type RecipeSource = {
   url?: string | null;
   videoUrl?: string | null;
   pdfUrl?: string | null;
+  imageUrl?: string | null;
 };

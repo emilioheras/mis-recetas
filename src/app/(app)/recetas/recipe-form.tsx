@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Star, Trash2 } from "lucide-react";
+import { Plus, Star, Trash2, X } from "lucide-react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { IngredientFormRow, RecipeSource } from "@/lib/recipes/types";
 import { saveRecipeAction } from "./actions";
+import { uploadImageAction } from "./import-actions";
 
 type Props = {
   recipeId: string | null;
@@ -29,6 +31,7 @@ type Props = {
     ingredients: IngredientFormRow[];
   };
   source?: RecipeSource;
+  initialImageSignedUrl?: string | null;
 };
 
 const EMPTY_ROW: IngredientFormRow = {
@@ -40,7 +43,12 @@ const EMPTY_ROW: IngredientFormRow = {
   notes: "",
 };
 
-export function RecipeForm({ recipeId, initial, source }: Props) {
+export function RecipeForm({
+  recipeId,
+  initial,
+  source,
+  initialImageSignedUrl,
+}: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -54,11 +62,43 @@ export function RecipeForm({ recipeId, initial, source }: Props) {
   const [notes, setNotes] = useState(initial.notes);
   const [sourceUrl, setSourceUrl] = useState(source?.url ?? "");
   const [videoUrl, setVideoUrl] = useState(source?.videoUrl ?? "");
+  const [imagePath, setImagePath] = useState<string>(source?.imageUrl ?? "");
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string>(
+    initialImageSignedUrl ?? "",
+  );
+  const [imageUploading, setImageUploading] = useState(false);
   const [ingredients, setIngredients] = useState<IngredientFormRow[]>(
     initial.ingredients.length > 0
       ? initial.ingredients
       : [{ ...EMPTY_ROW, is_main: true }],
   );
+
+  async function handleImageFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setError(null);
+    setImageUploading(true);
+    try {
+      const fd = new FormData();
+      fd.set("file", file);
+      const result = await uploadImageAction(fd);
+      if (result.ok) {
+        setImagePath(result.path);
+        setImagePreviewUrl(result.signedUrl);
+      } else {
+        setError(result.error);
+      }
+    } finally {
+      setImageUploading(false);
+      // Permite volver a seleccionar el mismo fichero si lo borramos.
+      event.target.value = "";
+    }
+  }
+
+  function removeImage() {
+    setImagePath("");
+    setImagePreviewUrl("");
+  }
 
   function updateRow(index: number, patch: Partial<IngredientFormRow>) {
     setIngredients((prev) =>
@@ -279,7 +319,47 @@ export function RecipeForm({ recipeId, initial, source }: Props) {
       </div>
 
       <fieldset className="grid gap-3 rounded-lg border p-4">
-        <legend className="px-1 text-sm font-medium">Vídeo y fuente (opcional)</legend>
+        <legend className="px-1 text-sm font-medium">Imagen, vídeo y fuente (opcional)</legend>
+
+        <input type="hidden" name="image_url" value={imagePath} />
+
+        <div className="grid gap-2">
+          <Label htmlFor="image_file">Imagen de portada</Label>
+          {imagePreviewUrl ? (
+            <div className="relative aspect-[16/9] w-full overflow-hidden rounded-md border bg-muted">
+              <Image
+                src={imagePreviewUrl}
+                alt="Vista previa de la imagen de portada"
+                fill
+                sizes="(max-width: 768px) 100vw, 768px"
+                className="object-cover"
+                unoptimized
+              />
+              <button
+                type="button"
+                onClick={removeImage}
+                disabled={imageUploading}
+                className="absolute right-2 top-2 rounded-full bg-background/80 p-1.5 backdrop-blur transition-colors hover:bg-background"
+                aria-label="Quitar imagen"
+                title="Quitar imagen"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : null}
+          <Input
+            id="image_file"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/avif,image/gif"
+            onChange={handleImageFile}
+            disabled={imageUploading}
+          />
+          <p className="text-xs text-muted-foreground">
+            Aparecerá como banner 16:9 arriba en la receta. Máximo 5 MB.{" "}
+            {imageUploading ? "Subiendo…" : null}
+          </p>
+        </div>
+
         <div className="grid gap-2">
           <Label htmlFor="video_url">Enlace de YouTube</Label>
           <Input
@@ -291,7 +371,7 @@ export function RecipeForm({ recipeId, initial, source }: Props) {
             onChange={(e) => setVideoUrl(e.target.value)}
           />
           <p className="text-xs text-muted-foreground">
-            Si lo rellenas, el vídeo aparecerá embebido arriba en la receta.
+            Si lo rellenas, el vídeo aparecerá embebido en la receta.
           </p>
         </div>
         <div className="grid gap-2">
@@ -329,8 +409,14 @@ export function RecipeForm({ recipeId, initial, source }: Props) {
       ) : null}
 
       <div className="flex gap-2">
-        <Button type="submit" disabled={isPending}>
-          {isPending ? "Guardando…" : recipeId ? "Guardar cambios" : "Crear receta"}
+        <Button type="submit" disabled={isPending || imageUploading}>
+          {isPending
+            ? "Guardando…"
+            : imageUploading
+            ? "Subiendo imagen…"
+            : recipeId
+            ? "Guardar cambios"
+            : "Crear receta"}
         </Button>
         <Button
           type="button"

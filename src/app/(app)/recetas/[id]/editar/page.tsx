@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getRecipe } from "@/lib/recipes/queries";
+import { getSignedImageUrl } from "@/lib/recipes/image-storage";
 import { RecipeForm } from "../../recipe-form";
 
 export default async function EditRecipePage({
@@ -37,6 +38,10 @@ export default async function EditRecipePage({
     }
   }
 
+  const initialImageSignedUrl = recipe.image_url
+    ? await getSignedImageUrl(recipe.image_url)
+    : null;
+
   return (
     <div className="container max-w-3xl py-8">
       <h1 className="mb-6 text-3xl font-bold">Editar receta</h1>
@@ -55,7 +60,9 @@ export default async function EditRecipePage({
           url: recipe.source_url,
           videoUrl: recipe.video_url,
           pdfUrl: recipe.pdf_url,
+          imageUrl: recipe.image_url,
         }}
+        initialImageSignedUrl={initialImageSignedUrl}
       />
     </div>
   );

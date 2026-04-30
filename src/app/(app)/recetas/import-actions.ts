@@ -4,6 +4,7 @@ import { importFromUrl } from "@/lib/importers/url";
 import { importFromYouTube, importFromYouTubeText } from "@/lib/importers/youtube";
 import { extractRecipeFromText } from "@/lib/ai/llm";
 import { uploadRecipePdf } from "@/lib/recipes/pdf-storage";
+import { uploadRecipeImage, getSignedImageUrl } from "@/lib/recipes/image-storage";
 import type { RecipeDraft } from "@/lib/recipes/types";
 
 export type ImportResult =
@@ -12,6 +13,10 @@ export type ImportResult =
 
 export type PdfUploadResult =
   | { ok: true; path: string; filename: string }
+  | { ok: false; error: string };
+
+export type ImageUploadResult =
+  | { ok: true; path: string; signedUrl: string }
   | { ok: false; error: string };
 
 export async function importFromUrlAction(url: string): Promise<ImportResult> {
@@ -85,6 +90,27 @@ export async function uploadPdfAction(formData: FormData): Promise<PdfUploadResu
     return {
       ok: false,
       error: err instanceof Error ? err.message : "No se pudo subir el PDF.",
+    };
+  }
+}
+
+export async function uploadImageAction(formData: FormData): Promise<ImageUploadResult> {
+  const file = formData.get("file");
+  if (!(file instanceof File)) {
+    return { ok: false, error: "Selecciona una imagen." };
+  }
+
+  try {
+    const { path } = await uploadRecipeImage(file);
+    const signedUrl = await getSignedImageUrl(path);
+    if (!signedUrl) {
+      return { ok: false, error: "Imagen subida pero no se pudo generar la URL firmada." };
+    }
+    return { ok: true, path, signedUrl };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "No se pudo subir la imagen.",
     };
   }
 }

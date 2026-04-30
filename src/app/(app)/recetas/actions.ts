@@ -22,6 +22,7 @@ type RawPayload = {
   source_url: string | null;
   video_url: string | null;
   pdf_url: string | null;
+  image_url: string | null;
 };
 
 const VALID_CATEGORIES: IngredientCategory[] = [
@@ -82,6 +83,7 @@ function parsePayload(formData: FormData): RawPayload | { error: string } {
   const source_url = (String(formData.get("source_url") ?? "").trim() || null);
   const video_url = (String(formData.get("video_url") ?? "").trim() || null);
   const pdf_url = (String(formData.get("pdf_url") ?? "").trim() || null);
+  const image_url = (String(formData.get("image_url") ?? "").trim() || null);
 
   return {
     title,
@@ -94,6 +96,7 @@ function parsePayload(formData: FormData): RawPayload | { error: string } {
     source_url,
     video_url,
     pdf_url,
+    image_url,
   };
 }
 
@@ -176,6 +179,7 @@ export async function saveRecipeAction(
           source_url: parsed.source_url,
           video_url: parsed.video_url,
           pdf_url: parsed.pdf_url,
+          image_url: parsed.image_url,
         })
         .eq("id", recipeId);
       if (error) throw new Error(error.message);
@@ -196,6 +200,7 @@ export async function saveRecipeAction(
           source_url: parsed.source_url,
           video_url: parsed.video_url,
           pdf_url: parsed.pdf_url,
+          image_url: parsed.image_url,
         })
         .select("id")
         .single();
