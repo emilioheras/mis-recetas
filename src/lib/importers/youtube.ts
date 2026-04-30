@@ -1,4 +1,5 @@
 import { Innertube } from "youtubei.js";
+import { YoutubeTranscript } from "youtube-transcript";
 import { extractRecipeFromText } from "@/lib/ai/llm";
 import type { RecipeDraft } from "@/lib/recipes/types";
 
@@ -33,7 +34,8 @@ type SegmentLike = {
   text?: string;
 };
 
-async function fetchTranscriptText(videoId: string): Promise<string> {
+// Estrategia 1: youtubei.js (Innertube), más robusto contra bloqueos.
+async function fetchTranscriptViaInnertube(videoId: string): Promise<string> {
   const youtube = await Innertube.create({
     lang: "es",
     location: "ES",
@@ -41,13 +43,19 @@ async function fetchTranscriptText(videoId: string): Promise<string> {
   });
   const info = await youtube.getInfo(videoId);
   const transcriptData = await info.getTranscript();
-  // El shape de la respuesta cambia entre versiones; cubrimos las dos formas
-  // habituales sin tipado estricto del SDK (su tipo interno es muy denso).
-  const root = transcriptData as unknown as {
-    transcript?: { content?: { body?: { initial_segments?: SegmentLike[] } } };
+  // El shape varia entre versiones — probamos varias rutas.
+  const candidate = transcriptData as unknown as {
+    transcript?: {
+      content?: { body?: { initial_segments?: SegmentLike[] } };
+      body?: { initial_segments?: SegmentLike[] };
+    };
+    segments?: SegmentLike[];
   };
   const segments: SegmentLike[] =
-    root?.transcript?.content?.body?.initial_segments ?? [];
+    candidate?.transcript?.content?.body?.initial_segments
+    ?? candidate?.transcript?.body?.initial_segments
+    ?? candidate?.segments
+    ?? [];
 
   return segments
     .map((s) => s.snippet?.text ?? s.text ?? "")
@@ -55,6 +63,46 @@ async function fetchTranscriptText(videoId: string): Promise<string> {
     .join(" ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+// Estrategia 2: youtube-transcript (scraping), funciona en local desde IP
+// residencial pero suele estar bloqueado en serverless.
+async function fetchTranscriptViaScraping(videoId: string): Promise<string> {
+  let parts: { text: string }[];
+  try {
+    parts = await YoutubeTranscript.fetchTranscript(videoId, { lang: "es" });
+  } catch {
+    parts = await YoutubeTranscript.fetchTranscript(videoId);
+  }
+  return parts
+    .map((p) => p.text)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function fetchTranscriptText(videoId: string): Promise<string> {
+  const errors: string[] = [];
+
+  try {
+    const text = await fetchTranscriptViaInnertube(videoId);
+    if (text.length >= 100) return text;
+    errors.push(`innertube: texto vacio o demasiado corto (${text.length} chars)`);
+  } catch (err) {
+    errors.push(`innertube: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  try {
+    const text = await fetchTranscriptViaScraping(videoId);
+    if (text.length >= 100) return text;
+    errors.push(`scraping: texto vacio o demasiado corto (${text.length} chars)`);
+  } catch (err) {
+    errors.push(`scraping: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // Visible en logs del servidor (Vercel Logs / terminal de npm run dev).
+  console.error("[youtube-import] todos los metodos fallaron:", errors.join(" | "));
+  throw new Error("No-transcript");
 }
 
 export async function importFromYouTube(url: string): Promise<RecipeDraft> {
@@ -65,23 +113,15 @@ export async function importFromYouTube(url: string): Promise<RecipeDraft> {
     );
   }
 
-  let text: string;
   try {
-    text = await fetchTranscriptText(id);
+    const text = await fetchTranscriptText(id);
+    const videoUrl = canonicalVideoUrl(id);
+    return await extractRecipeFromText(text, { videoUrl });
   } catch {
     throw new Error(
       "No hemos podido leer los subtítulos automáticamente. Si el vídeo los tiene, copia la transcripción a mano y pégala abajo.",
     );
   }
-
-  if (text.length < 100) {
-    throw new Error(
-      "No hemos podido leer subtítulos de este vídeo. Copia la transcripción a mano y pégala abajo.",
-    );
-  }
-
-  const videoUrl = canonicalVideoUrl(id);
-  return extractRecipeFromText(text, { videoUrl });
 }
 
 export async function importFromYouTubeText(
