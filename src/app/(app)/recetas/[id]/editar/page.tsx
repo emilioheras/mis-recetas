@@ -50,6 +50,12 @@ export default async function EditRecipePage({
           notes: recipe.notes ?? "",
           ingredients,
         }}
+        source={{
+          type: recipe.source_type,
+          url: recipe.source_url,
+          videoUrl: recipe.video_url,
+          pdfUrl: recipe.pdf_url,
+        }}
       />
     </div>
   );
