@@ -1,7 +1,7 @@
 "use server";
 
 import { importFromUrl } from "@/lib/importers/url";
-import { importFromYouTube } from "@/lib/importers/youtube";
+import { importFromYouTube, importFromYouTubeText } from "@/lib/importers/youtube";
 import { extractRecipeFromText } from "@/lib/ai/llm";
 import { uploadRecipePdf } from "@/lib/recipes/pdf-storage";
 import type { RecipeDraft } from "@/lib/recipes/types";
@@ -39,6 +39,30 @@ export async function importFromYouTubeAction(url: string): Promise<ImportResult
 
   try {
     const draft = await importFromYouTube(trimmed);
+    return { ok: true, draft };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Error desconocido al importar.",
+    };
+  }
+}
+
+export async function importFromYouTubeTextAction(
+  url: string,
+  transcript: string,
+): Promise<ImportResult> {
+  const trimmedUrl = url.trim();
+  const trimmedText = transcript.trim();
+  if (!trimmedUrl) {
+    return { ok: false, error: "Pega también el enlace del vídeo." };
+  }
+  if (!trimmedText) {
+    return { ok: false, error: "Pega la transcripción del vídeo." };
+  }
+
+  try {
+    const draft = await importFromYouTubeText(trimmedUrl, trimmedText);
     return { ok: true, draft };
   } catch (err) {
     return {

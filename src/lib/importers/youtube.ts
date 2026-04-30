@@ -1,4 +1,4 @@
-import { YoutubeTranscript } from "youtube-transcript";
+import { Innertube } from "youtubei.js";
 import { extractRecipeFromText } from "@/lib/ai/llm";
 import type { RecipeDraft } from "@/lib/recipes/types";
 
@@ -28,39 +28,78 @@ function canonicalVideoUrl(id: string): string {
   return `https://www.youtube.com/watch?v=${id}`;
 }
 
-export async function importFromYouTube(url: string): Promise<RecipeDraft> {
-  const id = extractVideoId(url);
-  if (!id) {
-    throw new Error("La URL no parece de YouTube. Pega un enlace de un vídeo (youtube.com/watch?v=… o youtu.be/…).");
-  }
+type SegmentLike = {
+  snippet?: { text?: string };
+  text?: string;
+};
 
-  let transcriptParts: { text: string }[];
-  try {
-    transcriptParts = await YoutubeTranscript.fetchTranscript(id, {
-      lang: "es",
-    });
-  } catch {
-    try {
-      transcriptParts = await YoutubeTranscript.fetchTranscript(id);
-    } catch {
-      throw new Error(
-        "No se pudo obtener la transcripción del vídeo. Puede que no tenga subtítulos. Prueba con otro vídeo o crea la receta a mano.",
-      );
-    }
-  }
+async function fetchTranscriptText(videoId: string): Promise<string> {
+  const youtube = await Innertube.create({
+    lang: "es",
+    location: "ES",
+    retrieve_player: false,
+  });
+  const info = await youtube.getInfo(videoId);
+  const transcriptData = await info.getTranscript();
+  // El shape de la respuesta cambia entre versiones; cubrimos las dos formas
+  // habituales sin tipado estricto del SDK (su tipo interno es muy denso).
+  const root = transcriptData as unknown as {
+    transcript?: { content?: { body?: { initial_segments?: SegmentLike[] } } };
+  };
+  const segments: SegmentLike[] =
+    root?.transcript?.content?.body?.initial_segments ?? [];
 
-  const text = transcriptParts
-    .map((p) => p.text)
+  return segments
+    .map((s) => s.snippet?.text ?? s.text ?? "")
+    .filter(Boolean)
     .join(" ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+export async function importFromYouTube(url: string): Promise<RecipeDraft> {
+  const id = extractVideoId(url);
+  if (!id) {
+    throw new Error(
+      "La URL no parece de YouTube. Pega un enlace de un vídeo (youtube.com/watch?v=… o youtu.be/…).",
+    );
+  }
+
+  let text: string;
+  try {
+    text = await fetchTranscriptText(id);
+  } catch {
+    throw new Error(
+      "No hemos podido leer los subtítulos automáticamente. Si el vídeo los tiene, copia la transcripción a mano y pégala abajo.",
+    );
+  }
 
   if (text.length < 100) {
     throw new Error(
-      "La transcripción es demasiado corta para extraer una receta.",
+      "No hemos podido leer subtítulos de este vídeo. Copia la transcripción a mano y pégala abajo.",
     );
   }
 
   const videoUrl = canonicalVideoUrl(id);
   return extractRecipeFromText(text, { videoUrl });
+}
+
+export async function importFromYouTubeText(
+  url: string,
+  transcriptText: string,
+): Promise<RecipeDraft> {
+  const id = extractVideoId(url);
+  if (!id) {
+    throw new Error(
+      "La URL no parece de YouTube. Pega un enlace de un vídeo (youtube.com/watch?v=… o youtu.be/…).",
+    );
+  }
+  const cleaned = transcriptText.replace(/\s+/g, " ").trim();
+  if (cleaned.length < 100) {
+    throw new Error(
+      "La transcripción es demasiado corta para extraer una receta.",
+    );
+  }
+  const videoUrl = canonicalVideoUrl(id);
+  return extractRecipeFromText(cleaned, { videoUrl });
 }
