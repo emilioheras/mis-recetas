@@ -17,14 +17,17 @@ type RawPayload = {
   prep_minutes: number | null;
   instructions_md: string;
   notes: string;
-  main_ingredient_name: string;
-  main_ingredient_category: IngredientCategory;
   ingredients: IngredientFormRow[];
   source_type: SourceType;
   source_url: string | null;
   video_url: string | null;
   pdf_url: string | null;
 };
+
+const VALID_CATEGORIES: IngredientCategory[] = [
+  "verdura", "fruta", "pescado", "carne", "lacteo", "cereal",
+  "legumbre", "huevo", "condimento", "bebida", "otro",
+];
 
 function parsePayload(formData: FormData): RawPayload | { error: string } {
   const title = String(formData.get("title") ?? "").trim();
@@ -41,12 +44,6 @@ function parsePayload(formData: FormData): RawPayload | { error: string } {
     return { error: "El tiempo de preparación no es válido." };
   }
 
-  const main_ingredient_name = String(formData.get("main_ingredient_name") ?? "").trim();
-  if (!main_ingredient_name) {
-    return { error: "Indica el ingrediente principal." };
-  }
-  const main_ingredient_category = (formData.get("main_ingredient_category") ?? "otro") as IngredientCategory;
-
   const instructions_md = String(formData.get("instructions_md") ?? "");
   const notes = String(formData.get("notes") ?? "");
 
@@ -60,10 +57,22 @@ function parsePayload(formData: FormData): RawPayload | { error: string } {
         name: row.name.trim(),
         quantity: String(row.quantity ?? "").trim(),
         unit: (row.unit ?? "al_gusto") as Unit,
+        category: VALID_CATEGORIES.includes(row.category as IngredientCategory)
+          ? (row.category as IngredientCategory)
+          : "otro",
+        is_main: row.is_main === true,
         notes: String(row.notes ?? "").trim(),
       }));
   } catch {
     return { error: "Lista de ingredientes inválida." };
+  }
+
+  const mainCount = ingredients.filter((i) => i.is_main).length;
+  if (mainCount === 0) {
+    return { error: "Marca un ingrediente como principal con la estrella." };
+  }
+  if (mainCount > 1) {
+    return { error: "Solo un ingrediente puede ser el principal." };
   }
 
   const rawSourceType = String(formData.get("source_type") ?? "manual");
@@ -80,8 +89,6 @@ function parsePayload(formData: FormData): RawPayload | { error: string } {
     prep_minutes: prep_minutes === null ? null : Math.round(prep_minutes),
     instructions_md,
     notes,
-    main_ingredient_name,
-    main_ingredient_category,
     ingredients,
     source_type,
     source_url,
@@ -142,11 +149,17 @@ export async function saveRecipeAction(
     const householdId = await getCurrentHouseholdId();
     const supabase = await createClient();
 
-    const mainIngredientId = await findOrCreateIngredient(
-      parsed.main_ingredient_name,
-      parsed.main_ingredient_category,
-      householdId,
-    );
+    const resolved: Array<{ row: IngredientFormRow; ingredient_id: string }> = [];
+    for (const row of parsed.ingredients) {
+      const ingredientId = await findOrCreateIngredient(row.name, row.category, householdId);
+      resolved.push({ row, ingredient_id: ingredientId });
+    }
+
+    const mainResolved = resolved.find((r) => r.row.is_main);
+    if (!mainResolved) {
+      return { ok: false, error: "Marca un ingrediente como principal con la estrella." };
+    }
+    const mainIngredientId = mainResolved.ingredient_id;
 
     let id: string;
     if (recipeId) {
@@ -190,6 +203,10 @@ export async function saveRecipeAction(
       id = data.id;
     }
 
+    // Deduplica por ingredient_id+unit, manteniendo la primera aparición
+    // (así si el usuario añade dos veces el mismo ingrediente en la misma unidad
+    // no rompemos el unique index de la tabla).
+    const seen = new Set<string>();
     const rowsToInsert: Array<{
       recipe_id: string;
       ingredient_id: string;
@@ -200,29 +217,20 @@ export async function saveRecipeAction(
       position: number;
     }> = [];
 
-    rowsToInsert.push({
-      recipe_id: id,
-      ingredient_id: mainIngredientId,
-      quantity: null,
-      unit: "al_gusto",
-      is_main: true,
-      notes: null,
-      position: 0,
-    });
-
-    for (let i = 0; i < parsed.ingredients.length; i++) {
-      const row = parsed.ingredients[i];
-      const ingredientId = await findOrCreateIngredient(row.name, "otro", householdId);
-      if (ingredientId === mainIngredientId) continue;
+    for (let i = 0; i < resolved.length; i++) {
+      const { row, ingredient_id } = resolved[i];
+      const key = `${ingredient_id}:${row.unit}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
       const qty = row.quantity === "" ? null : Number(row.quantity);
       rowsToInsert.push({
         recipe_id: id,
-        ingredient_id: ingredientId,
+        ingredient_id,
         quantity: Number.isFinite(qty) ? (qty as number) : null,
         unit: row.unit,
-        is_main: false,
+        is_main: row.is_main,
         notes: row.notes || null,
-        position: i + 1,
+        position: i,
       });
     }
 

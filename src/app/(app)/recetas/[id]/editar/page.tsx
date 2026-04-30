@@ -11,15 +11,31 @@ export default async function EditRecipePage({
   const recipe = await getRecipe(id);
   if (!recipe) notFound();
 
-  const otherIngredients = recipe.ingredients
-    .filter((row) => !row.is_main)
+  const ingredients = recipe.ingredients
+    .slice()
     .sort((a, b) => a.position - b.position)
     .map((row) => ({
       name: row.ingredient.name,
       quantity: row.quantity === null ? "" : String(row.quantity),
       unit: row.unit,
+      category: row.ingredient.category,
+      is_main: row.is_main,
       notes: row.notes ?? "",
     }));
+
+  // Garantiza que haya al menos un principal (compatibilidad con recetas
+  // antiguas en las que el principal podía estar fuera de la lista de filas).
+  if (!ingredients.some((r) => r.is_main)) {
+    if (recipe.main_ingredient && ingredients.length > 0) {
+      const idx = ingredients.findIndex(
+        (r) => r.name === recipe.main_ingredient!.name,
+      );
+      if (idx >= 0) ingredients[idx].is_main = true;
+      else ingredients[0].is_main = true;
+    } else if (ingredients.length > 0) {
+      ingredients[0].is_main = true;
+    }
+  }
 
   return (
     <div className="container max-w-3xl py-8">
@@ -32,9 +48,7 @@ export default async function EditRecipePage({
           prep_minutes: recipe.prep_minutes,
           instructions_md: recipe.instructions_md ?? "",
           notes: recipe.notes ?? "",
-          main_ingredient_name: recipe.main_ingredient?.name ?? "",
-          main_ingredient_category: recipe.main_ingredient?.category ?? "otro",
-          ingredients: otherIngredients,
+          ingredients,
         }}
       />
     </div>

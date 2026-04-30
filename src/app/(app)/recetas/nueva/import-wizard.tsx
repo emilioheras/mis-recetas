@@ -162,8 +162,6 @@ export function ImportWizard() {
             prep_minutes: null,
             instructions_md: "",
             notes: "",
-            main_ingredient_name: "",
-            main_ingredient_category: "otro",
             ingredients: [],
           }}
         />
@@ -317,8 +315,6 @@ export function ImportWizard() {
               prep_minutes: draft.prep_minutes,
               instructions_md: draft.instructions_md,
               notes: draft.notes,
-              main_ingredient_name: draft.main_ingredient_name,
-              main_ingredient_category: draft.main_ingredient_category,
               ingredients: draft.ingredients,
             }}
             source={{
@@ -385,8 +381,6 @@ export function ImportWizard() {
               prep_minutes: null,
               instructions_md: "",
               notes: "",
-              main_ingredient_name: "",
-              main_ingredient_category: "otro",
               ingredients: [],
             }}
             source={{ type: "pdf", pdfUrl: pdfUploaded.path }}

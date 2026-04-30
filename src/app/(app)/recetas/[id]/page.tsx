@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Pencil, Clock, Users, FileText, ArrowLeft } from "lucide-react";
+import { Pencil, Clock, Users, FileText, ArrowLeft, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getRecipe } from "@/lib/recipes/queries";
 import { getSignedPdfUrl } from "@/lib/recipes/pdf-storage";
@@ -18,9 +18,14 @@ export default async function RecipeDetailPage({
   const recipe = await getRecipe(id);
   if (!recipe) notFound();
 
-  const otherIngredients = recipe.ingredients
-    .filter((row) => !row.is_main)
-    .sort((a, b) => a.position - b.position);
+  const allIngredients = recipe.ingredients
+    .slice()
+    .sort((a, b) => {
+      // El principal va arriba; el resto por orden de posición.
+      if (a.is_main && !b.is_main) return -1;
+      if (!a.is_main && b.is_main) return 1;
+      return a.position - b.position;
+    });
 
   const pdfSignedUrl = recipe.pdf_url ? await getSignedPdfUrl(recipe.pdf_url) : null;
 
@@ -97,14 +102,24 @@ export default async function RecipeDetailPage({
             Ingredientes
           </h2>
           <ul className="space-y-2 text-sm">
-            {otherIngredients.length === 0 ? (
-              <li className="text-muted-foreground">
-                Solo {recipe.main_ingredient?.name ?? "ingredientes principales"}.
-              </li>
+            {allIngredients.length === 0 ? (
+              <li className="text-muted-foreground">Sin ingredientes.</li>
             ) : (
-              otherIngredients.map((row) => (
-                <li key={row.id} className="flex items-baseline justify-between gap-3 border-b border-border/40 pb-1.5">
-                  <span className="capitalize">{row.ingredient.name}</span>
+              allIngredients.map((row) => (
+                <li
+                  key={row.id}
+                  className="flex items-baseline justify-between gap-3 border-b border-border/40 pb-1.5"
+                >
+                  <span className="flex items-baseline gap-1.5 capitalize">
+                    {row.is_main ? (
+                      <Star
+                        className="h-3 w-3 shrink-0 self-center text-amber-500"
+                        fill="currentColor"
+                        aria-label="Ingrediente principal"
+                      />
+                    ) : null}
+                    {row.ingredient.name}
+                  </span>
                   <span className="shrink-0 tabular-nums text-muted-foreground">
                     {row.quantity ? `${row.quantity} ` : ""}
                     {UNIT_LABEL[row.unit] ?? row.unit}

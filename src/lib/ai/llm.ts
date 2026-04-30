@@ -22,13 +22,13 @@ Devuelve SIEMPRE un objeto JSON con EXACTAMENTE esta estructura (sin texto antes
   "title": "nombre del plato en español, ej. 'Tortilla de patatas'",
   "servings": número entero (2 si no se indica),
   "prep_minutes": número entero (o null si no se indica),
-  "main_ingredient_name": "ingrediente principal en español, MINÚSCULAS, SIN TILDES, SINGULAR (ej: 'tomate', 'esparrago', 'garbanzo', 'pollo', 'merluza')",
-  "main_ingredient_category": "uno de: verdura, fruta, pescado, carne, lacteo, cereal, legumbre, huevo, condimento, bebida, otro",
   "ingredients": [
     {
-      "name": "nombre del ingrediente en español",
+      "name": "nombre del ingrediente en español, MINÚSCULAS, SIN TILDES, SINGULAR (ej: 'tomate', 'esparrago', 'garbanzo')",
       "quantity": "número como cadena, ej. '200' o '1.5'; vacío si no aplica",
       "unit": "uno de: g, kg, ml, l, ud, cdta, cda, taza, pizca, al_gusto",
+      "category": "uno de: verdura, fruta, pescado, carne, lacteo, cereal, legumbre, huevo, condimento, bebida, otro",
+      "is_main": boolean (true SOLO para el ingrediente principal, false para los demás),
       "notes": "aclaraciones cortas, ej. 'picado fino'; vacío si no hay"
     }
   ],
@@ -37,9 +37,9 @@ Devuelve SIEMPRE un objeto JSON con EXACTAMENTE esta estructura (sin texto antes
 }
 
 REGLAS:
-- NO incluyas el ingrediente principal dentro del array "ingredients".
-- Si dudas qué es el ingrediente principal, elige el que define el plato o el que aparece en mayor cantidad.
-- Si el texto no parece una receta, devuelve title="No se ha podido extraer la receta" y el resto vacío o por defecto.
+- EXACTAMENTE UN ingrediente debe tener "is_main": true. Es el que define el plato o aparece en mayor cantidad.
+- Todos los ingredientes (incluido el principal) deben tener category correcta — la usamos para agrupar la lista de la compra.
+- Si el texto no parece una receta, devuelve title="No se ha podido extraer la receta" y ingredients=[].
 - Responde SOLO con el JSON, sin explicaciones adicionales.`;
 
 export async function extractRecipeFromText(
@@ -84,6 +84,8 @@ type RawIngredient = {
   name?: string;
   quantity?: string | number;
   unit?: string;
+  category?: string;
+  is_main?: boolean;
   notes?: string;
 };
 
@@ -91,8 +93,6 @@ type RawDraft = {
   title?: string;
   servings?: number;
   prep_minutes?: number | null;
-  main_ingredient_name?: string;
-  main_ingredient_category?: string;
   ingredients?: RawIngredient[];
   instructions_md?: string;
   notes?: string;
@@ -110,9 +110,34 @@ function normalizeDraft(
 ): RecipeDraft {
   const r = (raw ?? {}) as RawDraft;
 
-  const category = VALID_CATEGORIES.includes(r.main_ingredient_category as IngredientCategory)
-    ? (r.main_ingredient_category as IngredientCategory)
-    : "otro";
+  const rawIngredients = Array.isArray(r.ingredients) ? r.ingredients : [];
+  let ingredients = rawIngredients
+    .filter((i) => typeof i?.name === "string" && i.name.trim().length > 0)
+    .map((i) => ({
+      name: i.name!.trim(),
+      quantity: i.quantity == null ? "" : String(i.quantity).trim(),
+      unit: VALID_UNITS.includes(i.unit as Unit) ? (i.unit as Unit) : "al_gusto",
+      category: VALID_CATEGORIES.includes(i.category as IngredientCategory)
+        ? (i.category as IngredientCategory)
+        : "otro",
+      is_main: i.is_main === true,
+      notes: (i.notes ?? "").trim(),
+    }));
+
+  // Garantiza que haya exactamente un ingrediente marcado como principal.
+  const mainCount = ingredients.filter((i) => i.is_main).length;
+  if (mainCount === 0 && ingredients.length > 0) {
+    ingredients = ingredients.map((i, idx) => ({ ...i, is_main: idx === 0 }));
+  } else if (mainCount > 1) {
+    let kept = false;
+    ingredients = ingredients.map((i) => {
+      if (i.is_main && !kept) {
+        kept = true;
+        return i;
+      }
+      return { ...i, is_main: false };
+    });
+  }
 
   return {
     title: (r.title ?? "").trim() || "Sin título",
@@ -124,18 +149,7 @@ function normalizeDraft(
       typeof r.prep_minutes === "number" && r.prep_minutes > 0
         ? Math.round(r.prep_minutes)
         : null,
-    main_ingredient_name: (r.main_ingredient_name ?? "").trim() || "otro",
-    main_ingredient_category: category,
-    ingredients: Array.isArray(r.ingredients)
-      ? r.ingredients
-          .filter((i) => typeof i?.name === "string" && i.name.trim().length > 0)
-          .map((i) => ({
-            name: i.name!.trim(),
-            quantity: i.quantity == null ? "" : String(i.quantity).trim(),
-            unit: VALID_UNITS.includes(i.unit as Unit) ? (i.unit as Unit) : "al_gusto",
-            notes: (i.notes ?? "").trim(),
-          }))
-      : [],
+    ingredients,
     instructions_md: (r.instructions_md ?? "").trim(),
     notes: (r.notes ?? "").trim(),
     source_type: context?.videoUrl ? "youtube" : context?.sourceUrl ? "url" : "manual",

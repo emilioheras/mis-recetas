@@ -52,6 +52,8 @@ export type IngredientFormRow = {
   name: string;
   quantity: string;
   unit: Unit;
+  category: IngredientCategory;
+  is_main: boolean;
   notes: string;
 };
 
@@ -61,8 +63,6 @@ export type RecipeFormData = {
   prep_minutes: number | null;
   instructions_md: string;
   notes: string;
-  main_ingredient_name: string;
-  main_ingredient_category: IngredientCategory;
   ingredients: IngredientFormRow[];
 };
 
@@ -70,8 +70,6 @@ export type RecipeDraft = {
   title: string;
   servings: number;
   prep_minutes: number | null;
-  main_ingredient_name: string;
-  main_ingredient_category: IngredientCategory;
   ingredients: IngredientFormRow[];
   instructions_md: string;
   notes: string;

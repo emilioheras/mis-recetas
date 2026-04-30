@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Star, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,7 @@ import {
   type IngredientCategory,
   type Unit,
 } from "@/lib/ingredients";
+import { cn } from "@/lib/utils";
 import type { IngredientFormRow, RecipeSource } from "@/lib/recipes/types";
 import { saveRecipeAction } from "./actions";
 
@@ -25,8 +26,6 @@ type Props = {
     prep_minutes: number | null;
     instructions_md: string;
     notes: string;
-    main_ingredient_name: string;
-    main_ingredient_category: IngredientCategory;
     ingredients: IngredientFormRow[];
   };
   source?: RecipeSource;
@@ -36,6 +35,8 @@ const EMPTY_ROW: IngredientFormRow = {
   name: "",
   quantity: "",
   unit: "g",
+  category: "otro",
+  is_main: false,
   notes: "",
 };
 
@@ -49,14 +50,12 @@ export function RecipeForm({ recipeId, initial, source }: Props) {
   const [prepMinutes, setPrepMinutes] = useState(
     initial.prep_minutes === null ? "" : String(initial.prep_minutes),
   );
-  const [mainName, setMainName] = useState(initial.main_ingredient_name);
-  const [mainCategory, setMainCategory] = useState<IngredientCategory>(
-    initial.main_ingredient_category,
-  );
   const [instructions, setInstructions] = useState(initial.instructions_md);
   const [notes, setNotes] = useState(initial.notes);
   const [ingredients, setIngredients] = useState<IngredientFormRow[]>(
-    initial.ingredients.length > 0 ? initial.ingredients : [EMPTY_ROW],
+    initial.ingredients.length > 0
+      ? initial.ingredients
+      : [{ ...EMPTY_ROW, is_main: true }],
   );
 
   function updateRow(index: number, patch: Partial<IngredientFormRow>) {
@@ -65,10 +64,23 @@ export function RecipeForm({ recipeId, initial, source }: Props) {
     );
   }
   function addRow() {
-    setIngredients((prev) => [...prev, EMPTY_ROW]);
+    setIngredients((prev) => [...prev, { ...EMPTY_ROW }]);
   }
   function removeRow(index: number) {
-    setIngredients((prev) => prev.filter((_, i) => i !== index));
+    setIngredients((prev) => {
+      const wasMain = prev[index]?.is_main ?? false;
+      const next = prev.filter((_, i) => i !== index);
+      // Si quitamos el principal, el primero pasa a serlo.
+      if (wasMain && next.length > 0 && !next.some((r) => r.is_main)) {
+        next[0] = { ...next[0], is_main: true };
+      }
+      return next;
+    });
+  }
+  function setAsMain(index: number) {
+    setIngredients((prev) =>
+      prev.map((row, i) => ({ ...row, is_main: i === index })),
+    );
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -145,56 +157,52 @@ export function RecipeForm({ recipeId, initial, source }: Props) {
       </div>
 
       <fieldset className="grid gap-3 rounded-lg border p-4">
-        <legend className="px-1 text-sm font-medium">Ingrediente principal</legend>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="grid gap-2">
-            <Label htmlFor="main_ingredient_name">Nombre</Label>
-            <Input
-              id="main_ingredient_name"
-              name="main_ingredient_name"
-              required
-              value={mainName}
-              onChange={(e) => setMainName(e.target.value)}
-              placeholder="Pollo, tomate, garbanzos…"
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="main_ingredient_category">Categoría</Label>
-            <Select
-              id="main_ingredient_category"
-              name="main_ingredient_category"
-              value={mainCategory}
-              onChange={(e) => setMainCategory(e.target.value as IngredientCategory)}
-            >
-              {INGREDIENT_CATEGORIES.map((cat) => (
-                <option key={cat.value} value={cat.value}>
-                  {cat.label}
-                </option>
-              ))}
-            </Select>
-          </div>
-        </div>
+        <legend className="px-1 text-sm font-medium">Ingredientes</legend>
         <p className="text-xs text-muted-foreground">
-          Usado para agrupar tus recetas y para la &quot;receta del día&quot; por temporada.
+          Marca con la <Star className="inline h-3 w-3 align-text-bottom" /> el
+          ingrediente principal (el que define el plato). Lo usamos para
+          agrupar tus recetas y elegir la receta del día por temporada.
         </p>
-      </fieldset>
-
-      <fieldset className="grid gap-3 rounded-lg border p-4">
-        <legend className="px-1 text-sm font-medium">Otros ingredientes</legend>
         {ingredients.map((row, index) => (
-          <div key={index} className="grid grid-cols-12 gap-2 items-end">
-            <div className="col-span-12 sm:col-span-5">
+          <div
+            key={index}
+            className="grid grid-cols-12 gap-2 items-end border-b border-border/40 pb-3 last:border-b-0"
+          >
+            <div className="col-span-1 flex justify-start pb-2">
+              <button
+                type="button"
+                onClick={() => setAsMain(index)}
+                aria-label={
+                  row.is_main ? "Ingrediente principal" : "Marcar como principal"
+                }
+                title={
+                  row.is_main ? "Ingrediente principal" : "Marcar como principal"
+                }
+                className={cn(
+                  "rounded-md p-1.5 transition-colors",
+                  row.is_main
+                    ? "text-amber-500"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Star
+                  className="h-4 w-4"
+                  fill={row.is_main ? "currentColor" : "none"}
+                />
+              </button>
+            </div>
+            <div className="col-span-11 sm:col-span-4">
               <Label htmlFor={`ing-name-${index}`} className="sr-only">
                 Nombre
               </Label>
               <Input
                 id={`ing-name-${index}`}
-                placeholder="Aceite de oliva"
+                placeholder="Tomate, pollo, aceite…"
                 value={row.name}
                 onChange={(e) => updateRow(index, { name: e.target.value })}
               />
             </div>
-            <div className="col-span-4 sm:col-span-2">
+            <div className="col-span-3 sm:col-span-2">
               <Input
                 placeholder="200"
                 inputMode="decimal"
@@ -206,6 +214,7 @@ export function RecipeForm({ recipeId, initial, source }: Props) {
               <Select
                 value={row.unit}
                 onChange={(e) => updateRow(index, { unit: e.target.value as Unit })}
+                aria-label="Unidad"
               >
                 {UNITS.map((u) => (
                   <option key={u.value} value={u.value}>
@@ -214,12 +223,22 @@ export function RecipeForm({ recipeId, initial, source }: Props) {
                 ))}
               </Select>
             </div>
-            <div className="col-span-3 sm:col-span-2">
-              <Input
-                placeholder="notas"
-                value={row.notes}
-                onChange={(e) => updateRow(index, { notes: e.target.value })}
-              />
+            <div className="col-span-4 sm:col-span-2">
+              <Select
+                value={row.category}
+                onChange={(e) =>
+                  updateRow(index, {
+                    category: e.target.value as IngredientCategory,
+                  })
+                }
+                aria-label="Categoría"
+              >
+                {INGREDIENT_CATEGORIES.map((cat) => (
+                  <option key={cat.value} value={cat.value}>
+                    {cat.label}
+                  </option>
+                ))}
+              </Select>
             </div>
             <div className="col-span-1 flex justify-end">
               <Button
@@ -232,6 +251,14 @@ export function RecipeForm({ recipeId, initial, source }: Props) {
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
+            </div>
+            <div className="col-span-12">
+              <Input
+                placeholder="Notas (ej: picado fino, opcional)"
+                value={row.notes}
+                onChange={(e) => updateRow(index, { notes: e.target.value })}
+                className="text-xs"
+              />
             </div>
           </div>
         ))}
