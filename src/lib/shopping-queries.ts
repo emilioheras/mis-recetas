@@ -11,6 +11,7 @@ export type ShoppingListItem = {
     id: string;
     name: string;
     category: IngredientCategory;
+    is_pantry: boolean;
   };
 };
 
@@ -36,7 +37,7 @@ export async function getShoppingListByMenuId(
     .from("shopping_list_items")
     .select(
       `id, ingredient_id, total_quantity, unit, checked,
-       ingredient:ingredients (id, name, category)`,
+       ingredient:ingredients (id, name, category, is_pantry)`,
     )
     .eq("list_id", list.id);
 

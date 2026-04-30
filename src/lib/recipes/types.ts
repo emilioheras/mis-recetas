@@ -7,6 +7,7 @@ export type Ingredient = {
   name: string;
   normalized_name: string;
   category: IngredientCategory;
+  is_pantry: boolean;
 };
 
 export type RecipeIngredientRow = {
@@ -55,6 +56,7 @@ export type IngredientFormRow = {
   unit: Unit;
   category: IngredientCategory;
   is_main: boolean;
+  is_pantry: boolean;
   notes: string;
 };
 

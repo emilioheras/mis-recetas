@@ -121,6 +121,7 @@ function normalizeDraft(
         ? (i.category as IngredientCategory)
         : "otro",
       is_main: i.is_main === true,
+      is_pantry: false,
       notes: (i.notes ?? "").trim(),
     }));
 

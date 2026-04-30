@@ -40,6 +40,7 @@ const EMPTY_ROW: IngredientFormRow = {
   unit: "g",
   category: "otro",
   is_main: false,
+  is_pantry: false,
   notes: "",
 };
 
@@ -196,8 +197,10 @@ export function RecipeForm({
         <legend className="px-1 text-sm font-medium">Ingredientes</legend>
         <p className="text-xs text-muted-foreground">
           Marca con la <Star className="inline h-3 w-3 align-text-bottom" /> el
-          ingrediente principal (el que define el plato). Lo usamos para
-          agrupar tus recetas y elegir la receta del día por temporada.
+          ingrediente principal (el que define el plato). Marca{" "}
+          <strong>Despensa</strong> los que ya tienes en casa (sal, aceite,
+          pimienta…) — no aparecerán en la lista de la compra, sino en una
+          sección aparte.
         </p>
         {ingredients.map((row, index) => (
           <div
@@ -288,12 +291,23 @@ export function RecipeForm({
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
-            <div className="col-span-12">
+            <div className="col-span-12 flex items-center gap-3">
+              <label className="flex shrink-0 items-center gap-1.5 text-xs">
+                <input
+                  type="checkbox"
+                  checked={row.is_pantry}
+                  onChange={(e) =>
+                    updateRow(index, { is_pantry: e.target.checked })
+                  }
+                  className="h-4 w-4 rounded border-input"
+                />
+                Despensa
+              </label>
               <Input
                 placeholder="Notas (ej: picado fino, opcional)"
                 value={row.notes}
                 onChange={(e) => updateRow(index, { notes: e.target.value })}
-                className="text-xs"
+                className="text-xs flex-1"
               />
             </div>
           </div>

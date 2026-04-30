@@ -108,10 +108,10 @@ export async function getRecipe(id: string): Promise<Recipe | null> {
     .select(
       `id, title, source_type, source_url, video_url, pdf_url, image_url, servings,
        prep_minutes, instructions_md, notes, created_at,
-       main_ingredient:ingredients!recipes_main_ingredient_id_fkey (id, name, normalized_name, category),
+       main_ingredient:ingredients!recipes_main_ingredient_id_fkey (id, name, normalized_name, category, is_pantry),
        ingredients:recipe_ingredients (
          id, ingredient_id, quantity, unit, is_main, notes, position,
-         ingredient:ingredients (id, name, normalized_name, category)
+         ingredient:ingredients (id, name, normalized_name, category, is_pantry)
        )`,
     )
     .eq("id", id)

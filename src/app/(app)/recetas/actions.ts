@@ -62,6 +62,7 @@ function parsePayload(formData: FormData): RawPayload | { error: string } {
           ? (row.category as IngredientCategory)
           : "otro",
         is_main: row.is_main === true,
+        is_pantry: row.is_pantry === true,
         notes: String(row.notes ?? "").trim(),
       }));
   } catch {
@@ -103,6 +104,7 @@ function parsePayload(formData: FormData): RawPayload | { error: string } {
 async function findOrCreateIngredient(
   name: string,
   category: IngredientCategory,
+  isPantry: boolean,
   householdId: string,
 ): Promise<string> {
   const supabase = await createClient();
@@ -115,14 +117,28 @@ async function findOrCreateIngredient(
     .eq("normalized_name", normalized)
     .maybeSingle();
 
-  if (existing) return existing.id;
+  if (existing) {
+    // Aplica el flag de despensa de esta edición a nivel global del
+    // ingrediente (afecta a todas las recetas que lo usan).
+    await supabase
+      .from("ingredients")
+      .update({ is_pantry: isPantry })
+      .eq("id", existing.id);
+    return existing.id;
+  }
 
   const { data: viaAlias } = await supabase
     .from("ingredient_aliases")
     .select("ingredient_id")
     .eq("alias", normalized)
     .maybeSingle();
-  if (viaAlias) return viaAlias.ingredient_id;
+  if (viaAlias) {
+    await supabase
+      .from("ingredients")
+      .update({ is_pantry: isPantry })
+      .eq("id", viaAlias.ingredient_id);
+    return viaAlias.ingredient_id;
+  }
 
   const { data: created, error } = await supabase
     .from("ingredients")
@@ -130,6 +146,7 @@ async function findOrCreateIngredient(
       name: name.trim(),
       normalized_name: normalized,
       category,
+      is_pantry: isPantry,
       household_id: householdId,
     })
     .select("id")
@@ -154,7 +171,12 @@ export async function saveRecipeAction(
 
     const resolved: Array<{ row: IngredientFormRow; ingredient_id: string }> = [];
     for (const row of parsed.ingredients) {
-      const ingredientId = await findOrCreateIngredient(row.name, row.category, householdId);
+      const ingredientId = await findOrCreateIngredient(
+        row.name,
+        row.category,
+        row.is_pantry,
+        householdId,
+      );
       resolved.push({ row, ingredient_id: ingredientId });
     }
 

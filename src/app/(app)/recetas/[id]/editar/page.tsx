@@ -21,6 +21,7 @@ export default async function EditRecipePage({
       unit: row.unit,
       category: row.ingredient.category,
       is_main: row.is_main,
+      is_pantry: row.ingredient.is_pantry ?? false,
       notes: row.notes ?? "",
     }));
 

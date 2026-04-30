@@ -29,9 +29,11 @@ export function ShoppingView({ menuId, menuServings, list }: Props) {
     () => Object.fromEntries(list.items.map((it) => [it.id, it.checked])),
   );
 
-  const grouped = groupByCategory(list.items);
-  const total = list.items.length;
-  const checkedCount = list.items.filter((it) => checkedMap[it.id]).length;
+  const pantryItems = list.items.filter((it) => it.ingredient.is_pantry);
+  const buyItems = list.items.filter((it) => !it.ingredient.is_pantry);
+  const grouped = groupByCategory(buyItems);
+  const total = buyItems.length;
+  const checkedCount = buyItems.filter((it) => checkedMap[it.id]).length;
 
   function handleToggle(itemId: string, current: boolean) {
     setCheckedMap((prev) => ({ ...prev, [itemId]: !current }));
@@ -142,6 +144,37 @@ export function ShoppingView({ menuId, menuServings, list }: Props) {
             </section>
           );
         })}
+
+        {pantryItems.length > 0 ? (
+          <section>
+            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Ya en tu despensa
+            </h2>
+            <p className="mb-2 text-xs text-muted-foreground">
+              No te hace falta comprarlos, pero los necesitarás para cocinar.
+            </p>
+            <ul className="divide-y rounded-lg border border-dashed bg-muted/30">
+              {pantryItems
+                .slice()
+                .sort((a, b) =>
+                  a.ingredient.name.localeCompare(b.ingredient.name, "es"),
+                )
+                .map((item) => (
+                  <li
+                    key={item.id}
+                    className="flex items-center gap-3 p-3 text-muted-foreground"
+                  >
+                    <span className="flex-1 capitalize">
+                      {item.ingredient.name}
+                    </span>
+                    <span className="text-sm tabular-nums">
+                      {formatQuantity(item.total_quantity, item.unit)}
+                    </span>
+                  </li>
+                ))}
+            </ul>
+          </section>
+        ) : null}
       </div>
     </div>
   );
