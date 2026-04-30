@@ -1,5 +1,5 @@
 import { Readability } from "@mozilla/readability";
-import { JSDOM } from "jsdom";
+import { parseHTML } from "linkedom";
 import { extractRecipeFromText } from "@/lib/ai/llm";
 import type { RecipeDraft } from "@/lib/recipes/types";
 
@@ -28,8 +28,9 @@ export async function importFromUrl(url: string): Promise<RecipeDraft> {
   }
 
   const html = await res.text();
-  const dom = new JSDOM(html, { url });
-  const reader = new Readability(dom.window.document);
+  const { document } = parseHTML(html);
+  // Readability needs a Document-like object; linkedom's is compatible enough.
+  const reader = new Readability(document as unknown as Document);
   const article = reader.parse();
 
   const text = article?.textContent?.trim();
