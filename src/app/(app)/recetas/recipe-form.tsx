@@ -52,6 +52,8 @@ export function RecipeForm({ recipeId, initial, source }: Props) {
   );
   const [instructions, setInstructions] = useState(initial.instructions_md);
   const [notes, setNotes] = useState(initial.notes);
+  const [sourceUrl, setSourceUrl] = useState(source?.url ?? "");
+  const [videoUrl, setVideoUrl] = useState(source?.videoUrl ?? "");
   const [ingredients, setIngredients] = useState<IngredientFormRow[]>(
     initial.ingredients.length > 0
       ? initial.ingredients
@@ -105,12 +107,6 @@ export function RecipeForm({ recipeId, initial, source }: Props) {
       {source ? (
         <>
           <input type="hidden" name="source_type" value={source.type} />
-          {source.url ? (
-            <input type="hidden" name="source_url" value={source.url} />
-          ) : null}
-          {source.videoUrl ? (
-            <input type="hidden" name="video_url" value={source.videoUrl} />
-          ) : null}
           {source.pdfUrl ? (
             <input type="hidden" name="pdf_url" value={source.pdfUrl} />
           ) : null}
@@ -281,6 +277,38 @@ export function RecipeForm({ recipeId, initial, source }: Props) {
           Acepta formato Markdown.
         </p>
       </div>
+
+      <fieldset className="grid gap-3 rounded-lg border p-4">
+        <legend className="px-1 text-sm font-medium">Vídeo y fuente (opcional)</legend>
+        <div className="grid gap-2">
+          <Label htmlFor="video_url">Enlace de YouTube</Label>
+          <Input
+            id="video_url"
+            name="video_url"
+            type="url"
+            placeholder="https://www.youtube.com/watch?v=..."
+            value={videoUrl}
+            onChange={(e) => setVideoUrl(e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">
+            Si lo rellenas, el vídeo aparecerá embebido arriba en la receta.
+          </p>
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="source_url">URL de la fuente</Label>
+          <Input
+            id="source_url"
+            name="source_url"
+            type="url"
+            placeholder="https://www.recetasgratis.net/..."
+            value={sourceUrl}
+            onChange={(e) => setSourceUrl(e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">
+            Aparece como enlace al final de la receta.
+          </p>
+        </div>
+      </fieldset>
 
       <div className="grid gap-2">
         <Label htmlFor="notes">Notas (opcional)</Label>
