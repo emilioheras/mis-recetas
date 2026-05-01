@@ -19,30 +19,39 @@ export default async function CompraPage() {
   const menuData = await getMenuByWeekStart(weekStart);
 
   return (
-    <div className="container max-w-3xl py-8">
-      <h1 className="mb-6 text-3xl font-bold">Lista de la compra</h1>
+    <div>
+      <div className="bg-band">
+        <div className="container max-w-3xl px-4 py-12">
+          <p className="mb-2 text-xs uppercase tracking-[0.2em] text-foreground/60">
+            Lo que vas a necesitar
+          </p>
+          <h1 className="text-4xl sm:text-5xl">Lista de la compra</h1>
+        </div>
+      </div>
 
-      {!menuData ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Aún no tienes menú esta semana</CardTitle>
-            <CardDescription>
-              Para generar la lista de la compra primero necesitas un menú
-              semanal con recetas asignadas a cada día.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild>
-              <Link href="/menu">Ir a Menú semanal</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <CompraContent
-          menuId={menuData.menu.id}
-          menuServings={menuData.menu.servings}
-        />
-      )}
+      <div className="container max-w-3xl px-4 py-8">
+        {!menuData ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Aún no tienes menú esta semana</CardTitle>
+              <CardDescription>
+                Para generar la lista de la compra primero necesitas un menú
+                semanal con recetas asignadas a cada día.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild>
+                <Link href="/menu">Ir a Menú semanal</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <CompraContent
+            menuId={menuData.menu.id}
+            menuServings={menuData.menu.servings}
+          />
+        )}
+      </div>
     </div>
   );
 }

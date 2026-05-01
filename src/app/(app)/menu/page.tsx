@@ -44,33 +44,42 @@ export default async function MenuPage() {
   const weekLabel = formatWeekLabel(monday);
 
   return (
-    <div className="container max-w-4xl py-8">
-      <div className="mb-6 flex items-baseline justify-between gap-4">
-        <h1 className="text-3xl font-bold">Menú semanal</h1>
-        <span className="text-sm text-muted-foreground">{weekLabel}</span>
+    <div>
+      <div className="bg-band">
+        <div className="container max-w-4xl px-4 py-12">
+          <p className="mb-2 text-xs uppercase tracking-[0.2em] text-foreground/60">
+            Tu plan de la semana
+          </p>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <h1 className="text-4xl sm:text-5xl">Menú semanal</h1>
+            <span className="text-sm text-foreground/70">{weekLabel}</span>
+          </div>
+        </div>
       </div>
 
-      {!data ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Aún no has generado el menú de esta semana</CardTitle>
-            <CardDescription>
-              Eligiremos 7 recetas de tu colección, dándole prioridad a las
-              que tengan ingrediente principal de temporada y evitando que
-              se repita demasiado el mismo tipo de plato. Puedes cambiar
-              cualquier día sobre la marcha.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <GenerateMenuForm defaultServings={defaultServings} />
-            <p className="mt-4 text-xs text-muted-foreground">
-              ¿No tienes recetas? <Link href="/recetas/nueva" className="underline">Añade alguna primero</Link>.
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <MenuView menu={data.menu} items={data.items} />
-      )}
+      <div className="container max-w-4xl px-4 py-8">
+        {!data ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Aún no has generado el menú de esta semana</CardTitle>
+              <CardDescription>
+                Eligiremos 7 recetas de tu colección, dándole prioridad a las
+                que tengan ingrediente principal de temporada y evitando que
+                se repita demasiado el mismo tipo de plato. Puedes cambiar
+                cualquier día sobre la marcha.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <GenerateMenuForm defaultServings={defaultServings} />
+              <p className="mt-4 text-xs text-muted-foreground">
+                ¿No tienes recetas? <Link href="/recetas/nueva" className="underline">Añade alguna primero</Link>.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <MenuView menu={data.menu} items={data.items} />
+        )}
+      </div>
     </div>
   );
 }
