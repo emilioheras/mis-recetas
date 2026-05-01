@@ -93,7 +93,7 @@ export function RecipesBrowser({ recipes }: Props) {
                   setActiveIngredientId(active ? null : ing.id)
                 }
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors",
+                  "inline-flex items-center gap-1.5 rounded-[10px] border px-3 py-1 text-sm transition-colors",
                   active
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border bg-background hover:bg-accent",
@@ -151,11 +151,11 @@ export function RecipesBrowser({ recipes }: Props) {
 
       <div
         className={cn(
-          "grid gap-8",
-          hasCategories ? "md:grid-cols-[1fr_220px]" : "",
+          "grid gap-10",
+          hasCategories ? "md:grid-cols-[1fr_240px]" : "",
         )}
       >
-        <div>
+        <div className="min-w-0">
           {filtered.length === 0 ? (
             <p className="py-8 text-sm text-muted-foreground">
               Sin recetas para los filtros activos.{" "}
@@ -183,7 +183,7 @@ export function RecipesBrowser({ recipes }: Props) {
                       {recipe.categories.map((cat) => (
                         <span
                           key={cat.id}
-                          className="inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground"
+                          className="inline-flex items-center rounded-[10px] bg-secondary px-2 py-0.5 text-[10px] uppercase tracking-wider text-secondary-foreground/70"
                         >
                           {cat.name}
                         </span>
@@ -203,11 +203,11 @@ export function RecipesBrowser({ recipes }: Props) {
         </div>
 
         {hasCategories ? (
-          <aside className="hidden md:block">
-            <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground font-sans">
+          <aside className="hidden border-l border-border/60 pl-8 md:block">
+            <h2 className="mb-5 text-xs font-semibold uppercase tracking-[0.2em] text-foreground font-sans">
               Categorías
             </h2>
-            <ul className="space-y-2 text-sm">
+            <ul className="space-y-2.5 text-sm">
               <li>
                 <button
                   type="button"
@@ -215,8 +215,8 @@ export function RecipesBrowser({ recipes }: Props) {
                   className={cn(
                     "w-full text-left transition-colors",
                     activeCategoryId === null
-                      ? "font-semibold text-foreground"
-                      : "text-muted-foreground hover:text-foreground",
+                      ? "font-semibold text-primary"
+                      : "text-foreground/85 hover:text-primary",
                   )}
                 >
                   — Todas
@@ -234,12 +234,12 @@ export function RecipesBrowser({ recipes }: Props) {
                       className={cn(
                         "w-full text-left transition-colors",
                         active
-                          ? "font-semibold text-foreground"
-                          : "text-muted-foreground hover:text-foreground",
+                          ? "font-semibold text-primary"
+                          : "text-foreground/85 hover:text-primary",
                       )}
                     >
                       {c.name}{" "}
-                      <span className="tabular-nums text-xs">
+                      <span className="tabular-nums text-xs text-muted-foreground/70">
                         ({c.count})
                       </span>
                     </button>

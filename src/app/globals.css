@@ -30,6 +30,8 @@
     --input: 30 10% 88%;
     --ring: 14 78% 38%;
 
+    --band: 14 60% 94%;              /* #F4DDD3 — rosa-terracota suave */
+
     --radius: 0.5rem;
   }
 
@@ -51,6 +53,8 @@
     --border: 24 8% 18%;
     --input: 24 8% 18%;
     --ring: 18 85% 58%;
+
+    --band: 14 30% 16%;
   }
 }
 
