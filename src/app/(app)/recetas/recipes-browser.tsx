@@ -75,6 +75,19 @@ export function RecipesBrowser({ recipes }: Props) {
   const hasCategories = categoryCounts.length > 0;
   const hasFilter = activeIngredientId !== null || activeCategoryId !== null;
 
+  const grouped = useMemo(() => {
+    const map = new Map<string, RecipeListItem[]>();
+    for (const r of filtered) {
+      const letter = getInitial(r.title);
+      const arr = map.get(letter);
+      if (arr) arr.push(r);
+      else map.set(letter, [r]);
+    }
+    return Array.from(map.entries()).sort(([a], [b]) =>
+      a.localeCompare(b, "es"),
+    );
+  }, [filtered]);
+
   function clearFilters() {
     setActiveIngredientId(null);
     setActiveCategoryId(null);
@@ -171,36 +184,47 @@ export function RecipesBrowser({ recipes }: Props) {
               .
             </p>
           ) : (
-            <ul className="divide-y divide-border/60">
-              {filtered.map((recipe) => (
-                <li key={recipe.id}>
-                  <Link
-                    href={`/recetas/${recipe.id}`}
-                    className="group flex items-baseline justify-between gap-4 py-4 transition-colors"
-                  >
-                    <span className="flex flex-1 flex-wrap items-baseline gap-x-3 gap-y-1.5">
-                      <span className="text-xl font-medium leading-snug transition-colors group-hover:text-primary">
-                        {recipe.title}
-                      </span>
-                      {recipe.categories.map((cat) => (
-                        <span
-                          key={cat.id}
-                          className="inline-flex items-center rounded-[10px] bg-secondary px-2 py-0.5 text-[10px] uppercase tracking-wider text-secondary-foreground/70"
+            <div className="space-y-10">
+              {grouped.map(([letter, recipesInGroup]) => (
+                <section key={letter}>
+                  <div className="mb-4 rounded-[10px] bg-secondary py-3 text-center">
+                    <span className="text-2xl font-semibold tracking-wide text-foreground">
+                      {letter}
+                    </span>
+                  </div>
+                  <ul className="space-y-1">
+                    {recipesInGroup.map((recipe) => (
+                      <li key={recipe.id}>
+                        <Link
+                          href={`/recetas/${recipe.id}`}
+                          className="group flex items-baseline justify-between gap-4 py-2.5 transition-colors"
                         >
-                          {cat.name}
-                        </span>
-                      ))}
-                    </span>
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      {recipe.servings} pers
-                      {recipe.prep_minutes
-                        ? ` · ${recipe.prep_minutes} min`
-                        : ""}
-                    </span>
-                  </Link>
-                </li>
+                          <span className="flex flex-1 flex-wrap items-baseline gap-x-3 gap-y-1.5">
+                            <span className="text-lg font-medium leading-snug transition-colors group-hover:text-primary">
+                              {recipe.title}
+                            </span>
+                            {recipe.categories.map((cat) => (
+                              <span
+                                key={cat.id}
+                                className="inline-flex items-center rounded-[10px] bg-secondary px-2 py-0.5 text-[10px] uppercase tracking-wider text-secondary-foreground/70"
+                              >
+                                {cat.name}
+                              </span>
+                            ))}
+                          </span>
+                          <span className="shrink-0 text-xs text-muted-foreground">
+                            {recipe.servings} pers
+                            {recipe.prep_minutes
+                              ? ` · ${recipe.prep_minutes} min`
+                              : ""}
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
               ))}
-            </ul>
+            </div>
           )}
         </div>
 
@@ -254,4 +278,14 @@ export function RecipesBrowser({ recipes }: Props) {
       </div>
     </div>
   );
+}
+
+function getInitial(title: string): string {
+  const t = title.trim();
+  if (!t) return "#";
+  const first = t[0]
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toUpperCase();
+  return /[A-ZÑ]/.test(first) ? first : "#";
 }
