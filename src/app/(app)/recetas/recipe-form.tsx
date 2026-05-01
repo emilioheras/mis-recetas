@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Star, Trash2, X } from "lucide-react";
 import Image from "next/image";
@@ -90,18 +90,12 @@ export function RecipeForm({
       : [{ ...EMPTY_ROW, is_main: true }],
   );
   const [categories, setCategories] = useState<string[]>(initial.categories);
-  const [categoryInput, setCategoryInput] = useState("");
-  const [categoryFocused, setCategoryFocused] = useState(false);
-  const categoryInputRef = useRef<HTMLInputElement>(null);
+  const [newCategoryInput, setNewCategoryInput] = useState("");
 
-  const categorySuggestions = useMemo(() => {
+  const availableForSelect = useMemo(() => {
     const taken = new Set(categories.map((c) => normalizeCategoryName(c)));
-    const query = normalizeCategoryName(categoryInput);
-    return existingCategories
-      .filter((c) => !taken.has(c.normalized_name))
-      .filter((c) => (query ? c.normalized_name.includes(query) : true))
-      .slice(0, 8);
-  }, [existingCategories, categories, categoryInput]);
+    return existingCategories.filter((c) => !taken.has(c.normalized_name));
+  }, [existingCategories, categories]);
 
   function addCategory(name: string) {
     const trimmed = name.trim();
@@ -110,18 +104,23 @@ export function RecipeForm({
     if (!norm) return;
     if (categories.some((c) => normalizeCategoryName(c) === norm)) return;
     setCategories((prev) => [...prev, trimmed]);
-    setCategoryInput("");
-    categoryInputRef.current?.focus();
   }
   function removeCategory(index: number) {
     setCategories((prev) => prev.filter((_, i) => i !== index));
   }
-  function handleCategoryKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+  function handleSelectExisting(value: string) {
+    if (!value) return;
+    addCategory(value);
+  }
+  function handleAddNew() {
+    if (!newCategoryInput.trim()) return;
+    addCategory(newCategoryInput);
+    setNewCategoryInput("");
+  }
+  function handleNewKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Enter") {
       e.preventDefault();
-      if (categoryInput.trim()) addCategory(categoryInput);
-    } else if (e.key === "Backspace" && categoryInput === "" && categories.length > 0) {
-      setCategories((prev) => prev.slice(0, -1));
+      handleAddNew();
     }
   }
 
@@ -182,8 +181,8 @@ export function RecipeForm({
     setError(null);
     const formData = new FormData(event.currentTarget);
     formData.set("ingredients", JSON.stringify(ingredients));
-    // Si hay texto pendiente sin Enter, lo añadimos al guardar.
-    const pending = categoryInput.trim();
+    // Si hay texto pendiente sin "Añadir", lo añadimos al guardar.
+    const pending = newCategoryInput.trim();
     const finalCategories = pending
       ? [
           ...categories,
@@ -385,8 +384,8 @@ export function RecipeForm({
         <legend className="px-1 text-sm font-medium">Categorías</legend>
         <p className="text-xs text-muted-foreground">
           Etiquetas tuyas para encontrar la receta más rápido (ej: Ensaladas,
-          Cremas y sopas, Navidad, Orientales). Pulsa Enter para crear una nueva
-          o elige de las sugerencias.
+          Cremas y sopas, Navidad, Orientales). Elige una existente a la
+          izquierda o crea una nueva a la derecha.
         </p>
         {categories.length > 0 ? (
           <div className="flex flex-wrap gap-2">
@@ -408,32 +407,56 @@ export function RecipeForm({
             ))}
           </div>
         ) : null}
-        <div className="relative">
-          <Input
-            ref={categoryInputRef}
-            value={categoryInput}
-            onChange={(e) => setCategoryInput(e.target.value)}
-            onFocus={() => setCategoryFocused(true)}
-            onBlur={() => setTimeout(() => setCategoryFocused(false), 150)}
-            onKeyDown={handleCategoryKeyDown}
-            placeholder="Escribe y pulsa Enter…"
-          />
-          {categoryFocused && categorySuggestions.length > 0 ? (
-            <ul className="absolute left-0 right-0 top-full z-10 mt-1 max-h-60 overflow-auto rounded-md border bg-popover p-1 text-sm shadow-md">
-              {categorySuggestions.map((s) => (
-                <li key={s.id}>
-                  <button
-                    type="button"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => addCategory(s.name)}
-                    className="block w-full rounded px-2 py-1.5 text-left transition-colors hover:bg-accent"
-                  >
-                    {s.name}
-                  </button>
-                </li>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-1.5">
+            <Label htmlFor="category-existing" className="text-xs">
+              Elegir existente
+            </Label>
+            <Select
+              id="category-existing"
+              value=""
+              onChange={(e) => {
+                handleSelectExisting(e.target.value);
+                e.target.value = "";
+              }}
+              disabled={availableForSelect.length === 0}
+            >
+              <option value="">
+                {availableForSelect.length === 0
+                  ? "— Sin categorías disponibles —"
+                  : "— Elige una —"}
+              </option>
+              {availableForSelect.map((c) => (
+                <option key={c.id} value={c.name}>
+                  {c.name}
+                </option>
               ))}
-            </ul>
-          ) : null}
+            </Select>
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="category-new" className="text-xs">
+              Crear nueva
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                id="category-new"
+                value={newCategoryInput}
+                onChange={(e) => setNewCategoryInput(e.target.value)}
+                onKeyDown={handleNewKeyDown}
+                placeholder="Ensaladas, Navidad…"
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleAddNew}
+                disabled={!newCategoryInput.trim()}
+              >
+                Añadir
+              </Button>
+            </div>
+          </div>
         </div>
       </fieldset>
 
