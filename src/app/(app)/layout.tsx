@@ -4,19 +4,32 @@ import {
   BookOpen,
   CalendarDays,
   ChefHat,
+  Lightbulb,
   Package2,
   ShoppingCart,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { SignOutButton } from "./sign-out-button";
 
-const navItems = [
-  { href: "/", label: "Hoy", icon: ChefHat },
-  { href: "/recetas", label: "Recetas", icon: BookOpen },
-  { href: "/menu", label: "Menú", icon: CalendarDays },
-  { href: "/despensa", label: "Despensa", icon: Package2 },
-  { href: "/compra", label: "Compra", icon: ShoppingCart },
+type NavItem = {
+  href: string;
+  label: string;
+  icon: typeof ChefHat;
+  // si false, no aparece en la barra inferior móvil (sigue accesible
+  // desde el logo "Mis Recetas" arriba o desde la nav superior).
+  mobile: boolean;
+};
+
+const navItems: NavItem[] = [
+  { href: "/", label: "Hoy", icon: ChefHat, mobile: false },
+  { href: "/recetas", label: "Recetas", icon: BookOpen, mobile: true },
+  { href: "/menu", label: "Menú", icon: CalendarDays, mobile: true },
+  { href: "/despensa", label: "Despensa", icon: Package2, mobile: true },
+  { href: "/compra", label: "Compra", icon: ShoppingCart, mobile: true },
+  { href: "/trucos", label: "Trucos", icon: Lightbulb, mobile: true },
 ];
+
+const mobileNavItems = navItems.filter((it) => it.mobile);
 
 export default async function AppLayout({
   children,
@@ -63,7 +76,7 @@ export default async function AppLayout({
       </header>
       <main className="flex-1 pb-24 md:pb-0">{children}</main>
       <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-border/60 bg-background/95 backdrop-blur md:hidden">
-        {navItems.map((item) => {
+        {mobileNavItems.map((item) => {
           const Icon = item.icon;
           return (
             <Link
