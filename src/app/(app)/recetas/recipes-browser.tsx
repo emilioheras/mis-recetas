@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { X } from "lucide-react";
 import type { RecipeListItem } from "@/lib/recipes/types";
 import { cn } from "@/lib/utils";
 
@@ -117,8 +118,9 @@ export function RecipesBrowser({ recipes }: Props) {
             <button
               type="button"
               onClick={clearFilters}
-              className="ml-1 text-xs text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+              className="ml-1 inline-flex items-center gap-1 rounded-[10px] border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground"
             >
+              <X className="h-3 w-3" />
               Limpiar filtros
             </button>
           ) : null}
