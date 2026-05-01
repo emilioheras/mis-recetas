@@ -28,6 +28,44 @@ export async function togglePantryAction(
   return { ok: true };
 }
 
+export async function deleteIngredientAction(
+  ingredientId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = await createClient();
+
+  // Comprobación defensiva: solo permitimos borrar ingredientes que NO
+  // estén usados en ninguna receta. La UI ya esconde el botón en ese
+  // caso, pero por si acaso (ediciones concurrentes, etc.).
+  const { count, error: countError } = await supabase
+    .from("recipe_ingredients")
+    .select("recipe_id", { count: "exact", head: true })
+    .eq("ingredient_id", ingredientId);
+
+  if (countError) return { ok: false, error: countError.message };
+  if ((count ?? 0) > 0) {
+    return {
+      ok: false,
+      error:
+        "Este ingrediente todavía está en alguna receta. Quítalo de las recetas antes de borrarlo.",
+    };
+  }
+
+  // shopping_list_items tiene ON DELETE RESTRICT sobre ingredients,
+  // así que si el ingrediente apareció en alguna lista de la compra
+  // antigua hay que limpiarlo primero para que el delete no falle.
+  await supabase
+    .from("shopping_list_items")
+    .delete()
+    .eq("ingredient_id", ingredientId);
+
+  const { error } = await supabase.from("ingredients").delete().eq("id", ingredientId);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/despensa");
+  revalidatePath("/compra");
+  return { ok: true };
+}
+
 export async function addPantryIngredientAction(
   rawName: string,
   rawCategory: string,

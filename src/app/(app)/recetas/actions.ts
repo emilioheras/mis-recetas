@@ -347,6 +347,7 @@ export async function saveRecipeAction(
 
     revalidatePath("/recetas");
     revalidatePath(`/recetas/${id}`);
+    revalidatePath("/despensa");
 
     return { ok: true, recipeId: id };
   } catch (err) {
@@ -359,5 +360,6 @@ export async function deleteRecipeAction(recipeId: string): Promise<void> {
   const { error } = await supabase.from("recipes").delete().eq("id", recipeId);
   if (error) throw new Error(error.message);
   revalidatePath("/recetas");
+  revalidatePath("/despensa");
   redirect("/recetas");
 }

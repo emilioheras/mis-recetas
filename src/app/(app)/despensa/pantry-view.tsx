@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,7 @@ import {
 import type { PantryIngredient } from "@/lib/recipes/queries";
 import {
   addPantryIngredientAction,
+  deleteIngredientAction,
   togglePantryAction,
 } from "./actions";
 
@@ -58,6 +59,21 @@ export function PantryView({ ingredients }: Props) {
       } else {
         setError(null);
       }
+    });
+  }
+
+  function handleDelete(ingredientId: string, name: string) {
+    if (
+      !window.confirm(
+        `¿Borrar "${name}" de tus ingredientes? No se puede deshacer.`,
+      )
+    ) {
+      return;
+    }
+    setError(null);
+    startTransition(async () => {
+      const res = await deleteIngredientAction(ingredientId);
+      if (!res.ok) setError(res.error);
     });
   }
 
@@ -183,6 +199,18 @@ export function PantryView({ ingredients }: Props) {
                             ? "1 receta"
                             : `${ing.recipe_count} recetas`}
                         </span>
+                        {ing.recipe_count === 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(ing.id, ing.name)}
+                            disabled={isPending}
+                            aria-label={`Borrar ${ing.name}`}
+                            title="Borrar ingrediente"
+                            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        ) : null}
                       </li>
                     );
                   })}
