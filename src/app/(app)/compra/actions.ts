@@ -18,6 +18,7 @@ type RawMenuItem = {
       ingredient_id: string;
       quantity: number | null;
       unit: Unit;
+      notes: string | null;
       ingredient: {
         id: string;
         name: string;
@@ -47,7 +48,7 @@ export async function generateShoppingListAction(
         `recipe:recipes (
           id, servings,
           recipe_ingredients (
-            ingredient_id, quantity, unit,
+            ingredient_id, quantity, unit, notes,
             ingredient:ingredients (id, name, category)
           )
         )`,
@@ -64,6 +65,7 @@ export async function generateShoppingListAction(
           ingredient_category: ri.ingredient.category,
           quantity: ri.quantity,
           unit: ri.unit,
+          notes: ri.notes,
         })),
       }),
     );
@@ -87,6 +89,7 @@ export async function generateShoppingListAction(
           ingredient_id: a.ingredient_id,
           total_quantity: a.total_quantity,
           unit: a.unit,
+          notes: a.notes,
         })),
       );
       if (error) throw error;

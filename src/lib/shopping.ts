@@ -6,6 +6,7 @@ export type ShoppingInputItem = {
   ingredient_category: IngredientCategory;
   quantity: number | null;
   unit: Unit;
+  notes: string | null;
 };
 
 export type ShoppingInputRecipe = {
@@ -19,7 +20,18 @@ export type AggregatedShoppingItem = {
   category: IngredientCategory;
   total_quantity: number | null;
   unit: Unit;
+  notes: string | null;
 };
+
+function normalizeNotes(notes: string | null | undefined): string {
+  if (!notes) return "";
+  return notes
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ");
+}
 
 /**
  * Agrega los ingredientes de las recetas del menú semanal escalando por
@@ -39,7 +51,11 @@ export function aggregateShoppingItems(
       recipe.servings > 0 ? menuServings / recipe.servings : 1;
 
     for (const ing of recipe.ingredients) {
-      const key = `${ing.ingredient_id}:${ing.unit}`;
+      // Las notas forman parte de la clave: "queso (italiano curado
+      // rallado)" y "queso (fresco)" producen líneas distintas en la
+      // lista; "queso" y "queso" sin notas se agrupan.
+      const notesKey = normalizeNotes(ing.notes);
+      const key = `${ing.ingredient_id}:${ing.unit}:${notesKey}`;
       const scaled =
         ing.quantity != null && Number.isFinite(ing.quantity)
           ? round2(ing.quantity * factor)
@@ -60,6 +76,7 @@ export function aggregateShoppingItems(
           category: ing.ingredient_category,
           total_quantity: scaled,
           unit: ing.unit,
+          notes: ing.notes && ing.notes.trim() ? ing.notes.trim() : null,
         });
       }
     }

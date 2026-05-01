@@ -7,6 +7,7 @@ export type ShoppingListItem = {
   total_quantity: number | null;
   unit: Unit;
   checked: boolean;
+  notes: string | null;
   ingredient: {
     id: string;
     name: string;
@@ -36,7 +37,7 @@ export async function getShoppingListByMenuId(
   const { data: items } = await supabase
     .from("shopping_list_items")
     .select(
-      `id, ingredient_id, total_quantity, unit, checked,
+      `id, ingredient_id, total_quantity, unit, checked, notes,
        ingredient:ingredients (id, name, category, is_pantry)`,
     )
     .eq("list_id", list.id);

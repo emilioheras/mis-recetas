@@ -136,15 +136,21 @@ export function ShoppingView({ menuId, menuServings, list }: Props) {
                         />
                         <span
                           className={cn(
-                            "flex-1 capitalize",
+                            "flex-1",
                             checked && "text-muted-foreground line-through",
                           )}
                         >
-                          {item.ingredient.name}
+                          <span className="capitalize">{item.ingredient.name}</span>
+                          {item.notes ? (
+                            <span className="text-sm text-muted-foreground">
+                              {" · "}
+                              {item.notes}
+                            </span>
+                          ) : null}
                         </span>
                         <span
                           className={cn(
-                            "text-sm tabular-nums text-muted-foreground",
+                            "shrink-0 text-sm tabular-nums text-muted-foreground",
                             checked && "line-through",
                           )}
                         >
