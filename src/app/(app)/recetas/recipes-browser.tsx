@@ -1,0 +1,255 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import type { RecipeListItem } from "@/lib/recipes/types";
+import { cn } from "@/lib/utils";
+
+type Props = {
+  recipes: RecipeListItem[];
+};
+
+export function RecipesBrowser({ recipes }: Props) {
+  const [activeIngredientId, setActiveIngredientId] = useState<string | null>(null);
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
+
+  // Contadores de alimentos principales: tienen en cuenta el filtro de categoría
+  // activo, así un "Pollo (3)" significa "3 recetas de pollo dentro de la categoría
+  // que tengo seleccionada", no en absoluto.
+  const ingredientCounts = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; count: number }>();
+    for (const r of recipes) {
+      if (
+        activeCategoryId &&
+        !r.categories.some((c) => c.id === activeCategoryId)
+      ) {
+        continue;
+      }
+      if (!r.main_ingredient) continue;
+      const key = r.main_ingredient.id;
+      const entry = map.get(key);
+      if (entry) entry.count += 1;
+      else map.set(key, { id: key, name: r.main_ingredient.name, count: 1 });
+    }
+    return Array.from(map.values()).sort((a, b) =>
+      a.name.localeCompare(b.name, "es"),
+    );
+  }, [recipes, activeCategoryId]);
+
+  const categoryCounts = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; count: number }>();
+    for (const r of recipes) {
+      if (
+        activeIngredientId &&
+        r.main_ingredient?.id !== activeIngredientId
+      ) {
+        continue;
+      }
+      for (const c of r.categories) {
+        const entry = map.get(c.id);
+        if (entry) entry.count += 1;
+        else map.set(c.id, { id: c.id, name: c.name, count: 1 });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) =>
+      a.name.localeCompare(b.name, "es"),
+    );
+  }, [recipes, activeIngredientId]);
+
+  const filtered = useMemo(() => {
+    return recipes.filter((r) => {
+      if (activeIngredientId && r.main_ingredient?.id !== activeIngredientId) {
+        return false;
+      }
+      if (
+        activeCategoryId &&
+        !r.categories.some((c) => c.id === activeCategoryId)
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [recipes, activeIngredientId, activeCategoryId]);
+
+  const hasCategories = categoryCounts.length > 0;
+  const hasFilter = activeIngredientId !== null || activeCategoryId !== null;
+
+  function clearFilters() {
+    setActiveIngredientId(null);
+    setActiveCategoryId(null);
+  }
+
+  return (
+    <div>
+      {ingredientCounts.length > 0 ? (
+        <div className="mb-6 flex flex-wrap items-center gap-2">
+          {ingredientCounts.map((ing) => {
+            const active = ing.id === activeIngredientId;
+            return (
+              <button
+                key={ing.id}
+                type="button"
+                onClick={() =>
+                  setActiveIngredientId(active ? null : ing.id)
+                }
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors",
+                  active
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-background hover:bg-accent",
+                )}
+              >
+                <span className="capitalize">{ing.name}</span>
+                <span
+                  className={cn(
+                    "tabular-nums text-xs",
+                    active
+                      ? "text-primary-foreground/80"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {ing.count}
+                </span>
+              </button>
+            );
+          })}
+          {hasFilter ? (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="ml-1 text-xs text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+            >
+              Limpiar filtros
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {hasCategories ? (
+        <div className="mb-6 md:hidden">
+          <label
+            htmlFor="category-mobile"
+            className="mb-1.5 block text-xs uppercase tracking-[0.2em] text-muted-foreground"
+          >
+            Categorías
+          </label>
+          <select
+            id="category-mobile"
+            value={activeCategoryId ?? ""}
+            onChange={(e) => setActiveCategoryId(e.target.value || null)}
+            className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          >
+            <option value="">— Todas —</option>
+            {categoryCounts.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} ({c.count})
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
+
+      <div
+        className={cn(
+          "grid gap-8",
+          hasCategories ? "md:grid-cols-[1fr_220px]" : "",
+        )}
+      >
+        <div>
+          {filtered.length === 0 ? (
+            <p className="py-8 text-sm text-muted-foreground">
+              Sin recetas para los filtros activos.{" "}
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="text-primary underline-offset-4 hover:underline"
+              >
+                Limpiar filtros
+              </button>
+              .
+            </p>
+          ) : (
+            <ul className="divide-y divide-border/60">
+              {filtered.map((recipe) => (
+                <li key={recipe.id}>
+                  <Link
+                    href={`/recetas/${recipe.id}`}
+                    className="group flex items-baseline justify-between gap-4 py-4 transition-colors"
+                  >
+                    <span className="flex flex-1 flex-wrap items-baseline gap-x-3 gap-y-1.5">
+                      <span className="text-xl font-medium leading-snug transition-colors group-hover:text-primary">
+                        {recipe.title}
+                      </span>
+                      {recipe.categories.map((cat) => (
+                        <span
+                          key={cat.id}
+                          className="inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground"
+                        >
+                          {cat.name}
+                        </span>
+                      ))}
+                    </span>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {recipe.servings} pers
+                      {recipe.prep_minutes
+                        ? ` · ${recipe.prep_minutes} min`
+                        : ""}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {hasCategories ? (
+          <aside className="hidden md:block">
+            <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground font-sans">
+              Categorías
+            </h2>
+            <ul className="space-y-2 text-sm">
+              <li>
+                <button
+                  type="button"
+                  onClick={() => setActiveCategoryId(null)}
+                  className={cn(
+                    "w-full text-left transition-colors",
+                    activeCategoryId === null
+                      ? "font-semibold text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  — Todas
+                </button>
+              </li>
+              {categoryCounts.map((c) => {
+                const active = c.id === activeCategoryId;
+                return (
+                  <li key={c.id}>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setActiveCategoryId(active ? null : c.id)
+                      }
+                      className={cn(
+                        "w-full text-left transition-colors",
+                        active
+                          ? "font-semibold text-foreground"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {c.name}{" "}
+                      <span className="tabular-nums text-xs">
+                        ({c.count})
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </aside>
+        ) : null}
+      </div>
+    </div>
+  );
+}

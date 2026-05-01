@@ -3,7 +3,7 @@ import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { listRecipes } from "@/lib/recipes/queries";
-import type { RecipeListItem } from "@/lib/recipes/types";
+import { RecipesBrowser } from "./recipes-browser";
 
 export default async function RecipesPage({
   searchParams,
@@ -12,7 +12,6 @@ export default async function RecipesPage({
 }) {
   const { q } = await searchParams;
   const recipes = await listRecipes(q);
-  const groups = groupByMainIngredient(recipes);
 
   return (
     <div className="container max-w-5xl px-4 py-12">
@@ -30,7 +29,7 @@ export default async function RecipesPage({
         </Button>
       </div>
 
-      <form className="mb-12 flex items-center gap-2" action="/recetas">
+      <form className="mb-8 flex items-center gap-2" action="/recetas">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -67,62 +66,8 @@ export default async function RecipesPage({
           )}
         </div>
       ) : (
-        <div className="space-y-14">
-          {groups.map((group) => (
-            <section key={group.key}>
-              <h2 className="mb-5 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground font-sans">
-                {group.label}
-              </h2>
-              <ul className="divide-y divide-border/60">
-                {group.recipes.map((recipe) => (
-                  <li key={recipe.id}>
-                    <Link
-                      href={`/recetas/${recipe.id}`}
-                      className="group flex items-baseline justify-between gap-4 py-4 transition-colors"
-                    >
-                      <span className="flex flex-1 flex-wrap items-baseline gap-x-3 gap-y-1.5">
-                        <span className="text-xl font-medium leading-snug transition-colors group-hover:text-primary">
-                          {recipe.title}
-                        </span>
-                        {recipe.categories.map((cat) => (
-                          <span
-                            key={cat.id}
-                            className="inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground"
-                          >
-                            {cat.name}
-                          </span>
-                        ))}
-                      </span>
-                      <span className="shrink-0 text-xs text-muted-foreground">
-                        {recipe.servings} pers
-                        {recipe.prep_minutes ? ` · ${recipe.prep_minutes} min` : ""}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
-        </div>
+        <RecipesBrowser recipes={recipes} />
       )}
     </div>
-  );
-}
-
-type Group = { key: string; label: string; recipes: RecipeListItem[] };
-
-function groupByMainIngredient(recipes: RecipeListItem[]): Group[] {
-  const map = new Map<string, Group>();
-  for (const recipe of recipes) {
-    const ing = recipe.main_ingredient;
-    const key = ing?.id ?? "__sin_principal__";
-    const label = ing?.name ?? "Sin ingrediente principal";
-    if (!map.has(key)) {
-      map.set(key, { key, label, recipes: [] });
-    }
-    map.get(key)!.recipes.push(recipe);
-  }
-  return Array.from(map.values()).sort((a, b) =>
-    a.label.localeCompare(b.label, "es"),
   );
 }
