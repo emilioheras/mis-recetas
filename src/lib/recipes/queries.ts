@@ -186,3 +186,46 @@ export async function listCategories(): Promise<Category[]> {
   if (error) throw error;
   return (data ?? []) as Category[];
 }
+
+export type PantryIngredient = {
+  id: string;
+  name: string;
+  category: import("@/lib/ingredients").IngredientCategory;
+  is_pantry: boolean;
+  recipe_count: number;
+};
+
+export async function listIngredientsWithRecipeCount(): Promise<PantryIngredient[]> {
+  const supabase = await createClient();
+
+  const [ingredientsRes, recipeIngsRes] = await Promise.all([
+    supabase
+      .from("ingredients")
+      .select("id, name, category, is_pantry")
+      .order("name", { ascending: true }),
+    supabase
+      .from("recipe_ingredients")
+      .select("ingredient_id, recipe_id"),
+  ]);
+
+  if (ingredientsRes.error) throw ingredientsRes.error;
+  if (recipeIngsRes.error) throw recipeIngsRes.error;
+
+  // Cuenta recetas DISTINTAS (recipe_id) por ingredient_id, no filas:
+  // si una receta tuviera el mismo ingrediente en dos unidades distintas,
+  // queremos contarla una sola vez.
+  const recipesPerIngredient = new Map<string, Set<string>>();
+  for (const r of recipeIngsRes.data ?? []) {
+    const set = recipesPerIngredient.get(r.ingredient_id);
+    if (set) set.add(r.recipe_id);
+    else recipesPerIngredient.set(r.ingredient_id, new Set([r.recipe_id]));
+  }
+
+  return (ingredientsRes.data ?? []).map((i) => ({
+    id: i.id,
+    name: i.name,
+    category: i.category,
+    is_pantry: i.is_pantry,
+    recipe_count: recipesPerIngredient.get(i.id)?.size ?? 0,
+  }));
+}

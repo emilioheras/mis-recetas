@@ -29,7 +29,20 @@ export function ShoppingView({ menuId, menuServings, list }: Props) {
     () => Object.fromEntries(list.items.map((it) => [it.id, it.checked])),
   );
 
-  const pantryItems = list.items.filter((it) => it.ingredient.is_pantry);
+  // Items de despensa: deduplicados por ingredient_id (un mismo
+  // ingrediente que aparece en varias recetas/unidades aquí solo
+  // figura una vez como recordatorio).
+  const pantryItems = (() => {
+    const seen = new Set<string>();
+    const out: ShoppingListItem[] = [];
+    for (const it of list.items) {
+      if (!it.ingredient.is_pantry) continue;
+      if (seen.has(it.ingredient_id)) continue;
+      seen.add(it.ingredient_id);
+      out.push(it);
+    }
+    return out;
+  })();
   const buyItems = list.items.filter((it) => !it.ingredient.is_pantry);
   const grouped = groupByCategory(buyItems);
   const total = buyItems.length;
@@ -166,9 +179,6 @@ export function ShoppingView({ menuId, menuServings, list }: Props) {
                   >
                     <span className="flex-1 capitalize">
                       {item.ingredient.name}
-                    </span>
-                    <span className="text-sm tabular-nums">
-                      {formatQuantity(item.total_quantity, item.unit)}
                     </span>
                   </li>
                 ))}
