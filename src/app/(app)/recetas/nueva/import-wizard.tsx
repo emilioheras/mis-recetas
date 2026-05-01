@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import type { RecipeDraft } from "@/lib/recipes/types";
+import type { Category, RecipeDraft } from "@/lib/recipes/types";
 import { RecipeForm } from "../recipe-form";
 import {
   importFromUrlAction,
@@ -34,7 +34,11 @@ const TABS: Array<{
   { id: "pdf", label: "Desde PDF", icon: FilePlus, enabled: true },
 ];
 
-export function ImportWizard() {
+export function ImportWizard({
+  existingCategories,
+}: {
+  existingCategories: Category[];
+}) {
   const [tab, setTab] = useState<TabId>("manual");
   const [url, setUrl] = useState("");
   const [ytUrl, setYtUrl] = useState("");
@@ -184,7 +188,9 @@ export function ImportWizard() {
             instructions_md: "",
             notes: "",
             ingredients: [],
+            categories: [],
           }}
+          existingCategories={existingCategories}
         />
       ) : null}
 
@@ -394,7 +400,9 @@ export function ImportWizard() {
               instructions_md: draft.instructions_md,
               notes: draft.notes,
               ingredients: draft.ingredients,
+              categories: draft.categories ?? [],
             }}
+            existingCategories={existingCategories}
             source={{
               type:
                 tab === "url" ? "url"
@@ -460,7 +468,9 @@ export function ImportWizard() {
               instructions_md: "",
               notes: "",
               ingredients: [],
+              categories: [],
             }}
+            existingCategories={existingCategories}
             source={{ type: "pdf", pdfUrl: pdfUploaded.path }}
           />
         </>

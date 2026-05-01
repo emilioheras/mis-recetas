@@ -1,5 +1,19 @@
 import { createClient } from "@/lib/supabase/server";
-import type { Recipe, RecipeListItem } from "./types";
+import type { Category, Recipe, RecipeListItem } from "./types";
+
+type RecipeCategoryJoin = {
+  position: number | null;
+  category: Category | null;
+};
+
+function flattenCategories(rows: RecipeCategoryJoin[] | null | undefined): Category[] {
+  if (!rows) return [];
+  return rows
+    .slice()
+    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+    .map((r) => r.category)
+    .filter((c): c is Category => c !== null);
+}
 
 export type RecipeOfTheDay = {
   recipe: RecipeListItem;
@@ -40,7 +54,11 @@ export async function listRecipes(search?: string): Promise<RecipeListItem[]> {
     .select(
       `id, title, source_type, prep_minutes, servings,
        main_ingredient:ingredients!recipes_main_ingredient_id_fkey
-         (id, name, normalized_name, category)`,
+         (id, name, normalized_name, category),
+       category_links:recipe_categories (
+         position,
+         category:categories (id, name, normalized_name)
+       )`,
     )
     .order("title", { ascending: true });
 
@@ -50,20 +68,35 @@ export async function listRecipes(search?: string): Promise<RecipeListItem[]> {
 
   const { data, error } = await query;
   if (error) throw error;
-  return (data ?? []) as unknown as RecipeListItem[];
+  return (data ?? []).map((row) => {
+    const r = row as unknown as RecipeListItem & { category_links?: RecipeCategoryJoin[] };
+    return {
+      id: r.id,
+      title: r.title,
+      source_type: r.source_type,
+      prep_minutes: r.prep_minutes,
+      servings: r.servings,
+      main_ingredient: r.main_ingredient,
+      categories: flattenCategories(r.category_links),
+    };
+  });
 }
 
 export async function getRecipeOfTheDay(): Promise<RecipeOfTheDay | null> {
   const supabase = await createClient();
   const month = new Date().getMonth() + 1;
 
-  const [{ data: recipes }, { data: seasonal }] = await Promise.all([
+  const [{ data: recipesRaw }, { data: seasonal }] = await Promise.all([
     supabase
       .from("recipes")
       .select(
         `id, title, source_type, prep_minutes, servings,
          main_ingredient:ingredients!recipes_main_ingredient_id_fkey
-           (id, name, normalized_name, category)`,
+           (id, name, normalized_name, category),
+         category_links:recipe_categories (
+           position,
+           category:categories (id, name, normalized_name)
+         )`,
       )
       .order("id", { ascending: true }),
     supabase
@@ -72,7 +105,20 @@ export async function getRecipeOfTheDay(): Promise<RecipeOfTheDay | null> {
       .eq("month", month),
   ]);
 
-  if (!recipes || recipes.length === 0) return null;
+  if (!recipesRaw || recipesRaw.length === 0) return null;
+
+  const recipes: RecipeListItem[] = recipesRaw.map((row) => {
+    const r = row as unknown as RecipeListItem & { category_links?: RecipeCategoryJoin[] };
+    return {
+      id: r.id,
+      title: r.title,
+      source_type: r.source_type,
+      prep_minutes: r.prep_minutes,
+      servings: r.servings,
+      main_ingredient: r.main_ingredient,
+      categories: flattenCategories(r.category_links),
+    };
+  });
 
   const seasonalMap = new Map<string, boolean>();
   for (const row of seasonal ?? []) {
@@ -83,7 +129,7 @@ export async function getRecipeOfTheDay(): Promise<RecipeOfTheDay | null> {
   const inSeasonPool: RecipeListItem[] = [];
   const offPool: RecipeListItem[] = [];
 
-  for (const r of recipes as unknown as RecipeListItem[]) {
+  for (const r of recipes) {
     const norm = r.main_ingredient?.normalized_name;
     const peak = norm ? seasonalMap.get(norm) : undefined;
     if (peak === true) peakPool.push(r);
@@ -112,6 +158,10 @@ export async function getRecipe(id: string): Promise<Recipe | null> {
        ingredients:recipe_ingredients (
          id, ingredient_id, quantity, unit, is_main, notes, position,
          ingredient:ingredients (id, name, normalized_name, category, is_pantry)
+       ),
+       category_links:recipe_categories (
+         position,
+         category:categories (id, name, normalized_name)
        )`,
     )
     .eq("id", id)
@@ -119,5 +169,20 @@ export async function getRecipe(id: string): Promise<Recipe | null> {
     .maybeSingle();
 
   if (error) throw error;
-  return data as unknown as Recipe | null;
+  if (!data) return null;
+  const r = data as unknown as Recipe & { category_links?: RecipeCategoryJoin[] };
+  return {
+    ...r,
+    categories: flattenCategories(r.category_links),
+  };
+}
+
+export async function listCategories(): Promise<Category[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("categories")
+    .select("id, name, normalized_name")
+    .order("name", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as Category[];
 }

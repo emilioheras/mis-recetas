@@ -80,8 +80,18 @@ export default async function RecipesPage({
                       href={`/recetas/${recipe.id}`}
                       className="group flex items-baseline justify-between gap-4 py-4 transition-colors"
                     >
-                      <span className="text-xl font-medium leading-snug transition-colors group-hover:text-primary">
-                        {recipe.title}
+                      <span className="flex flex-1 flex-wrap items-baseline gap-x-3 gap-y-1.5">
+                        <span className="text-xl font-medium leading-snug transition-colors group-hover:text-primary">
+                          {recipe.title}
+                        </span>
+                        {recipe.categories.map((cat) => (
+                          <span
+                            key={cat.id}
+                            className="inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground"
+                          >
+                            {cat.name}
+                          </span>
+                        ))}
                       </span>
                       <span className="shrink-0 text-xs text-muted-foreground">
                         {recipe.servings} pers

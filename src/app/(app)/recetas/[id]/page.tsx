@@ -51,6 +51,18 @@ export default async function RecipeDetailPage({
             </p>
           ) : null}
           <h1 className="text-5xl leading-[1.05] sm:text-6xl">{recipe.title}</h1>
+          {recipe.categories.length > 0 ? (
+            <div className="mt-4 flex flex-wrap gap-1.5">
+              {recipe.categories.map((cat) => (
+                <span
+                  key={cat.id}
+                  className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs"
+                >
+                  {cat.name}
+                </span>
+              ))}
+            </div>
+          ) : null}
           <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
             <span className="inline-flex items-center gap-1.5">
               <Users className="h-4 w-4" /> {recipe.servings} comensales

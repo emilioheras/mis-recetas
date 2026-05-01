@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getRecipe } from "@/lib/recipes/queries";
+import { getRecipe, listCategories } from "@/lib/recipes/queries";
 import { getSignedImageUrl } from "@/lib/recipes/image-storage";
 import { RecipeForm } from "../../recipe-form";
 
@@ -39,9 +39,10 @@ export default async function EditRecipePage({
     }
   }
 
-  const initialImageSignedUrl = recipe.image_url
-    ? await getSignedImageUrl(recipe.image_url)
-    : null;
+  const [initialImageSignedUrl, existingCategories] = await Promise.all([
+    recipe.image_url ? getSignedImageUrl(recipe.image_url) : Promise.resolve(null),
+    listCategories(),
+  ]);
 
   return (
     <div className="container max-w-3xl py-8">
@@ -55,7 +56,9 @@ export default async function EditRecipePage({
           instructions_md: recipe.instructions_md ?? "",
           notes: recipe.notes ?? "",
           ingredients,
+          categories: recipe.categories.map((c) => c.name),
         }}
+        existingCategories={existingCategories}
         source={{
           type: recipe.source_type,
           url: recipe.source_url,

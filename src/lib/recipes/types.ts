@@ -10,6 +10,12 @@ export type Ingredient = {
   is_pantry: boolean;
 };
 
+export type Category = {
+  id: string;
+  name: string;
+  normalized_name: string;
+};
+
 export type RecipeIngredientRow = {
   id: string;
   ingredient_id: string;
@@ -31,6 +37,7 @@ export type RecipeListItem = {
     Ingredient,
     "id" | "name" | "normalized_name" | "category"
   > | null;
+  categories: Category[];
 };
 
 export type Recipe = {
@@ -48,6 +55,7 @@ export type Recipe = {
   created_at: string;
   main_ingredient: Ingredient | null;
   ingredients: RecipeIngredientRow[];
+  categories: Category[];
 };
 
 export type IngredientFormRow = {
@@ -67,6 +75,7 @@ export type RecipeFormData = {
   instructions_md: string;
   notes: string;
   ingredients: IngredientFormRow[];
+  categories: string[];
 };
 
 export type RecipeDraft = {
@@ -80,6 +89,7 @@ export type RecipeDraft = {
   source_url: string | null;
   video_url: string | null;
   pdf_url: string | null;
+  categories?: string[];
 };
 
 export type RecipeSource = {

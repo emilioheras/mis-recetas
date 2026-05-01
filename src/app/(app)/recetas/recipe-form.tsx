@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Star, Trash2, X } from "lucide-react";
 import Image from "next/image";
@@ -16,7 +16,11 @@ import {
   type Unit,
 } from "@/lib/ingredients";
 import { cn } from "@/lib/utils";
-import type { IngredientFormRow, RecipeSource } from "@/lib/recipes/types";
+import type {
+  Category,
+  IngredientFormRow,
+  RecipeSource,
+} from "@/lib/recipes/types";
 import { saveRecipeAction } from "./actions";
 import { uploadImageAction } from "./import-actions";
 
@@ -29,10 +33,21 @@ type Props = {
     instructions_md: string;
     notes: string;
     ingredients: IngredientFormRow[];
+    categories: string[];
   };
+  existingCategories: Category[];
   source?: RecipeSource;
   initialImageSignedUrl?: string | null;
 };
+
+function normalizeCategoryName(name: string): string {
+  return name
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ");
+}
 
 const EMPTY_ROW: IngredientFormRow = {
   name: "",
@@ -47,6 +62,7 @@ const EMPTY_ROW: IngredientFormRow = {
 export function RecipeForm({
   recipeId,
   initial,
+  existingCategories,
   source,
   initialImageSignedUrl,
 }: Props) {
@@ -73,6 +89,41 @@ export function RecipeForm({
       ? initial.ingredients
       : [{ ...EMPTY_ROW, is_main: true }],
   );
+  const [categories, setCategories] = useState<string[]>(initial.categories);
+  const [categoryInput, setCategoryInput] = useState("");
+  const [categoryFocused, setCategoryFocused] = useState(false);
+  const categoryInputRef = useRef<HTMLInputElement>(null);
+
+  const categorySuggestions = useMemo(() => {
+    const taken = new Set(categories.map((c) => normalizeCategoryName(c)));
+    const query = normalizeCategoryName(categoryInput);
+    return existingCategories
+      .filter((c) => !taken.has(c.normalized_name))
+      .filter((c) => (query ? c.normalized_name.includes(query) : true))
+      .slice(0, 8);
+  }, [existingCategories, categories, categoryInput]);
+
+  function addCategory(name: string) {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const norm = normalizeCategoryName(trimmed);
+    if (!norm) return;
+    if (categories.some((c) => normalizeCategoryName(c) === norm)) return;
+    setCategories((prev) => [...prev, trimmed]);
+    setCategoryInput("");
+    categoryInputRef.current?.focus();
+  }
+  function removeCategory(index: number) {
+    setCategories((prev) => prev.filter((_, i) => i !== index));
+  }
+  function handleCategoryKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (categoryInput.trim()) addCategory(categoryInput);
+    } else if (e.key === "Backspace" && categoryInput === "" && categories.length > 0) {
+      setCategories((prev) => prev.slice(0, -1));
+    }
+  }
 
   async function handleImageFile(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -131,6 +182,19 @@ export function RecipeForm({
     setError(null);
     const formData = new FormData(event.currentTarget);
     formData.set("ingredients", JSON.stringify(ingredients));
+    // Si hay texto pendiente sin Enter, lo añadimos al guardar.
+    const pending = categoryInput.trim();
+    const finalCategories = pending
+      ? [
+          ...categories,
+          ...(categories.some(
+            (c) => normalizeCategoryName(c) === normalizeCategoryName(pending),
+          )
+            ? []
+            : [pending]),
+        ]
+      : categories;
+    formData.set("categories", JSON.stringify(finalCategories));
 
     startTransition(async () => {
       const result = await saveRecipeAction(recipeId, formData);
@@ -315,6 +379,62 @@ export function RecipeForm({
         <Button type="button" variant="outline" size="sm" onClick={addRow}>
           <Plus className="h-4 w-4" /> Añadir ingrediente
         </Button>
+      </fieldset>
+
+      <fieldset className="grid gap-3 rounded-lg border p-4">
+        <legend className="px-1 text-sm font-medium">Categorías</legend>
+        <p className="text-xs text-muted-foreground">
+          Etiquetas tuyas para encontrar la receta más rápido (ej: Ensaladas,
+          Cremas y sopas, Navidad, Orientales). Pulsa Enter para crear una nueva
+          o elige de las sugerencias.
+        </p>
+        {categories.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {categories.map((cat, index) => (
+              <span
+                key={`${cat}-${index}`}
+                className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1 text-xs"
+              >
+                {cat}
+                <button
+                  type="button"
+                  onClick={() => removeCategory(index)}
+                  aria-label={`Quitar ${cat}`}
+                  className="rounded-full p-0.5 transition-colors hover:bg-background/60"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : null}
+        <div className="relative">
+          <Input
+            ref={categoryInputRef}
+            value={categoryInput}
+            onChange={(e) => setCategoryInput(e.target.value)}
+            onFocus={() => setCategoryFocused(true)}
+            onBlur={() => setTimeout(() => setCategoryFocused(false), 150)}
+            onKeyDown={handleCategoryKeyDown}
+            placeholder="Escribe y pulsa Enter…"
+          />
+          {categoryFocused && categorySuggestions.length > 0 ? (
+            <ul className="absolute left-0 right-0 top-full z-10 mt-1 max-h-60 overflow-auto rounded-md border bg-popover p-1 text-sm shadow-md">
+              {categorySuggestions.map((s) => (
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => addCategory(s.name)}
+                    className="block w-full rounded px-2 py-1.5 text-left transition-colors hover:bg-accent"
+                  >
+                    {s.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
       </fieldset>
 
       <div className="grid gap-2">

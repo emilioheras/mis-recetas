@@ -18,12 +18,22 @@ type RawPayload = {
   instructions_md: string;
   notes: string;
   ingredients: IngredientFormRow[];
+  categories: string[];
   source_type: SourceType;
   source_url: string | null;
   video_url: string | null;
   pdf_url: string | null;
   image_url: string | null;
 };
+
+function normalizeCategory(name: string): string {
+  return name
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ");
+}
 
 const VALID_CATEGORIES: IngredientCategory[] = [
   "verdura", "fruta", "pescado", "carne", "lacteo", "cereal",
@@ -77,6 +87,24 @@ function parsePayload(formData: FormData): RawPayload | { error: string } {
     return { error: "Solo un ingrediente puede ser el principal." };
   }
 
+  let categories: string[] = [];
+  try {
+    const raw = String(formData.get("categories") ?? "[]");
+    const parsed = JSON.parse(raw) as unknown[];
+    const seen = new Set<string>();
+    for (const item of parsed) {
+      if (typeof item !== "string") continue;
+      const trimmed = item.trim();
+      if (!trimmed) continue;
+      const norm = normalizeCategory(trimmed);
+      if (!norm || seen.has(norm)) continue;
+      seen.add(norm);
+      categories.push(trimmed);
+    }
+  } catch {
+    return { error: "Lista de categorías inválida." };
+  }
+
   const rawSourceType = String(formData.get("source_type") ?? "manual");
   const source_type = (VALID_SOURCE_TYPES as string[]).includes(rawSourceType)
     ? (rawSourceType as SourceType)
@@ -93,12 +121,45 @@ function parsePayload(formData: FormData): RawPayload | { error: string } {
     instructions_md,
     notes,
     ingredients,
+    categories,
     source_type,
     source_url,
     video_url,
     pdf_url,
     image_url,
   };
+}
+
+async function findOrCreateCategory(
+  name: string,
+  householdId: string,
+): Promise<string> {
+  const supabase = await createClient();
+  const normalized = normalizeCategory(name);
+
+  const { data: existing } = await supabase
+    .from("categories")
+    .select("id")
+    .eq("household_id", householdId)
+    .eq("normalized_name", normalized)
+    .maybeSingle();
+
+  if (existing) return existing.id;
+
+  const { data: created, error } = await supabase
+    .from("categories")
+    .insert({
+      name: name.trim(),
+      normalized_name: normalized,
+      household_id: householdId,
+    })
+    .select("id")
+    .single();
+
+  if (error || !created) {
+    throw new Error(`No se pudo crear la categoría "${name}": ${error?.message ?? ""}`);
+  }
+  return created.id;
 }
 
 async function findOrCreateIngredient(
@@ -263,6 +324,24 @@ export async function saveRecipeAction(
 
     if (rowsToInsert.length > 0) {
       const { error } = await supabase.from("recipe_ingredients").insert(rowsToInsert);
+      if (error) throw new Error(error.message);
+    }
+
+    // Categorías: resolver/crear y reemplazar las asociaciones existentes.
+    if (recipeId) {
+      await supabase.from("recipe_categories").delete().eq("recipe_id", id);
+    }
+    if (parsed.categories.length > 0) {
+      const categoryRows: Array<{
+        recipe_id: string;
+        category_id: string;
+        position: number;
+      }> = [];
+      for (let i = 0; i < parsed.categories.length; i++) {
+        const categoryId = await findOrCreateCategory(parsed.categories[i], householdId);
+        categoryRows.push({ recipe_id: id, category_id: categoryId, position: i });
+      }
+      const { error } = await supabase.from("recipe_categories").insert(categoryRows);
       if (error) throw new Error(error.message);
     }
 
