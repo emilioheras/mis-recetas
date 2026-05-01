@@ -187,7 +187,7 @@ export function RecipesBrowser({ recipes }: Props) {
             <div className="space-y-10">
               {grouped.map(([letter, recipesInGroup]) => (
                 <section key={letter}>
-                  <div className="mb-3 rounded-[10px] bg-secondary/50 px-4 py-1.5">
+                  <div className="mb-3 rounded-[10px] bg-band px-4 py-1.5">
                     <span className="text-lg font-semibold tracking-wide text-foreground">
                       {letter}
                     </span>
