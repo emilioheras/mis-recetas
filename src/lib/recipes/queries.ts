@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Category, Recipe, RecipeListItem } from "./types";
+import { PRODUCT_CATALOG, type SeasonCategory } from "@/lib/seasonal";
 
 type RecipeCategoryJoin = {
   position: number | null;
@@ -15,9 +16,27 @@ function flattenCategories(rows: RecipeCategoryJoin[] | null | undefined): Categ
     .filter((c): c is Category => c !== null);
 }
 
-export type RecipeOfTheDay = {
-  recipe: RecipeListItem;
-  seasonality: "peak" | "in_season" | "off_season";
+export type SeasonalProduct = {
+  normalized: string;
+  name: string;
+  peak: boolean;
+};
+
+export type SeasonalRecipe = {
+  id: string;
+  title: string;
+  image_url: string | null;
+  prep_minutes: number | null;
+  servings: number;
+  main_ingredient: { id: string; name: string; normalized_name: string } | null;
+  isPeak: boolean;
+};
+
+export type SeasonalDashboard = {
+  month: number;
+  totalRecipes: number;
+  products: Record<SeasonCategory, SeasonalProduct[]>;
+  recipes: SeasonalRecipe[];
 };
 
 function dayOfYear(date: Date = new Date()): number {
@@ -82,7 +101,15 @@ export async function listRecipes(search?: string): Promise<RecipeListItem[]> {
   });
 }
 
-export async function getRecipeOfTheDay(): Promise<RecipeOfTheDay | null> {
+function rotateForToday<T>(items: T[], offset: number): T[] {
+  if (items.length === 0) return items;
+  const k = ((offset % items.length) + items.length) % items.length;
+  return [...items.slice(k), ...items.slice(0, k)];
+}
+
+export async function getSeasonalDashboard(
+  recipeLimit = 4,
+): Promise<SeasonalDashboard> {
   const supabase = await createClient();
   const month = new Date().getMonth() + 1;
 
@@ -90,13 +117,9 @@ export async function getRecipeOfTheDay(): Promise<RecipeOfTheDay | null> {
     supabase
       .from("recipes")
       .select(
-        `id, title, source_type, prep_minutes, servings,
+        `id, title, image_url, prep_minutes, servings,
          main_ingredient:ingredients!recipes_main_ingredient_id_fkey
-           (id, name, normalized_name, category),
-         category_links:recipe_categories (
-           position,
-           category:categories (id, name, normalized_name)
-         )`,
+           (id, name, normalized_name)`,
       )
       .order("id", { ascending: true }),
     supabase
@@ -105,46 +128,69 @@ export async function getRecipeOfTheDay(): Promise<RecipeOfTheDay | null> {
       .eq("month", month),
   ]);
 
-  if (!recipesRaw || recipesRaw.length === 0) return null;
-
-  const recipes: RecipeListItem[] = recipesRaw.map((row) => {
-    const r = row as unknown as RecipeListItem & { category_links?: RecipeCategoryJoin[] };
-    return {
-      id: r.id,
-      title: r.title,
-      source_type: r.source_type,
-      prep_minutes: r.prep_minutes,
-      servings: r.servings,
-      main_ingredient: r.main_ingredient,
-      categories: flattenCategories(r.category_links),
-    };
-  });
-
   const seasonalMap = new Map<string, boolean>();
   for (const row of seasonal ?? []) {
     seasonalMap.set(row.normalized_name, row.peak);
   }
 
-  const peakPool: RecipeListItem[] = [];
-  const inSeasonPool: RecipeListItem[] = [];
-  const offPool: RecipeListItem[] = [];
+  const products: Record<SeasonCategory, SeasonalProduct[]> = {
+    verdura: [],
+    fruta: [],
+    pescado: [],
+  };
+  for (const [normalized, peak] of seasonalMap) {
+    const meta = PRODUCT_CATALOG[normalized];
+    if (!meta) continue;
+    products[meta.category].push({ normalized, name: meta.name, peak });
+  }
+  for (const cat of Object.keys(products) as SeasonCategory[]) {
+    products[cat].sort((a, b) => a.name.localeCompare(b.name, "es"));
+  }
 
-  for (const r of recipes) {
+  type RawRecipe = {
+    id: string;
+    title: string;
+    image_url: string | null;
+    prep_minutes: number | null;
+    servings: number;
+    main_ingredient: {
+      id: string;
+      name: string;
+      normalized_name: string;
+    } | null;
+  };
+  const allRecipes = (recipesRaw ?? []) as unknown as RawRecipe[];
+
+  const peakPool: SeasonalRecipe[] = [];
+  const inSeasonPool: SeasonalRecipe[] = [];
+  for (const r of allRecipes) {
     const norm = r.main_ingredient?.normalized_name;
     const peak = norm ? seasonalMap.get(norm) : undefined;
-    if (peak === true) peakPool.push(r);
-    else if (peak === false) inSeasonPool.push(r);
-    else offPool.push(r);
+    if (peak === undefined) continue;
+    const item: SeasonalRecipe = {
+      id: r.id,
+      title: r.title,
+      image_url: r.image_url,
+      prep_minutes: r.prep_minutes,
+      servings: r.servings,
+      main_ingredient: r.main_ingredient,
+      isPeak: peak === true,
+    };
+    if (peak === true) peakPool.push(item);
+    else inSeasonPool.push(item);
   }
 
-  const index = dayOfYear();
-  if (peakPool.length > 0) {
-    return { recipe: peakPool[index % peakPool.length], seasonality: "peak" };
-  }
-  if (inSeasonPool.length > 0) {
-    return { recipe: inSeasonPool[index % inSeasonPool.length], seasonality: "in_season" };
-  }
-  return { recipe: offPool[index % offPool.length], seasonality: "off_season" };
+  const offset = dayOfYear();
+  const rotatedPeak = rotateForToday(peakPool, offset);
+  const rotatedInSeason = rotateForToday(inSeasonPool, offset);
+  const recipes = [...rotatedPeak, ...rotatedInSeason].slice(0, recipeLimit);
+
+  return {
+    month,
+    totalRecipes: allRecipes.length,
+    products,
+    recipes,
+  };
 }
 
 export async function getRecipe(id: string): Promise<Recipe | null> {
