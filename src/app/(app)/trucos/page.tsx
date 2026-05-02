@@ -3,6 +3,7 @@ import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { listTricks } from "@/lib/tricks/queries";
+import { TricksBrowser } from "./tricks-browser";
 
 export default async function TricksPage({
   searchParams,
@@ -73,20 +74,7 @@ export default async function TricksPage({
             )}
           </div>
         ) : (
-          <ul className="space-y-1">
-            {tricks.map((trick) => (
-              <li key={trick.id}>
-                <Link
-                  href={`/trucos/${trick.id}`}
-                  className="group flex items-baseline justify-between gap-4 py-3 transition-colors"
-                >
-                  <span className="text-lg font-medium leading-snug transition-colors group-hover:text-primary">
-                    {trick.title}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <TricksBrowser tricks={tricks} />
         )}
       </div>
     </div>

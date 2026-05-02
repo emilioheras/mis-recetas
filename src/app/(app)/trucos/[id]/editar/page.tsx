@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getTrick } from "@/lib/tricks/queries";
+import { getTrick, listTrickCategories } from "@/lib/tricks/queries";
 import { getSignedImageUrl } from "@/lib/recipes/image-storage";
 import { TrickForm } from "../../trick-form";
 
@@ -9,7 +9,10 @@ export default async function EditTrickPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const trick = await getTrick(id);
+  const [trick, existingCategories] = await Promise.all([
+    getTrick(id),
+    listTrickCategories(),
+  ]);
   if (!trick) notFound();
 
   const initialImageSignedUrl = trick.image_url
@@ -36,7 +39,9 @@ export default async function EditTrickPage({
             image_url: trick.image_url,
             video_url: trick.video_url,
             source_url: trick.source_url,
+            categories: trick.categories.map((c) => c.name),
           }}
+          existingCategories={existingCategories}
           initialImageSignedUrl={initialImageSignedUrl}
         />
       </div>

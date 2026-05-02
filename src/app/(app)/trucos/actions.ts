@@ -11,6 +11,68 @@ type UploadResult =
   | { ok: true; path: string; signedUrl: string }
   | { ok: false; error: string };
 
+function normalizeCategory(name: string): string {
+  return name
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+async function findOrCreateTrickCategory(
+  name: string,
+  householdId: string,
+): Promise<string> {
+  const supabase = await createClient();
+  const normalized = normalizeCategory(name);
+
+  const { data: existing } = await supabase
+    .from("trick_categories")
+    .select("id")
+    .eq("household_id", householdId)
+    .eq("normalized_name", normalized)
+    .maybeSingle();
+
+  if (existing) return existing.id;
+
+  const { data: created, error } = await supabase
+    .from("trick_categories")
+    .insert({
+      name: name.trim(),
+      normalized_name: normalized,
+      household_id: householdId,
+    })
+    .select("id")
+    .single();
+
+  if (error || !created) {
+    throw new Error(`No se pudo crear la categoría "${name}": ${error?.message ?? ""}`);
+  }
+  return created.id;
+}
+
+async function cleanupOrphanedTrickCategories(householdId: string): Promise<void> {
+  const supabase = await createClient();
+  const { data: cats } = await supabase
+    .from("trick_categories")
+    .select("id")
+    .eq("household_id", householdId);
+  if (!cats || cats.length === 0) return;
+
+  const ids = cats.map((c) => c.id);
+  const { data: used } = await supabase
+    .from("trick_category_links")
+    .select("category_id")
+    .in("category_id", ids);
+
+  const usedIds = new Set((used ?? []).map((r) => r.category_id));
+  const orphans = ids.filter((id) => !usedIds.has(id));
+  if (orphans.length === 0) return;
+
+  await supabase.from("trick_categories").delete().in("id", orphans);
+}
+
 export async function uploadTrickImageAction(
   formData: FormData,
 ): Promise<UploadResult> {
@@ -48,6 +110,24 @@ export async function saveTrickAction(
   const source_url = String(formData.get("source_url") ?? "").trim() || null;
   const image_url = String(formData.get("image_url") ?? "").trim() || null;
 
+  let categories: string[] = [];
+  try {
+    const raw = String(formData.get("categories") ?? "[]");
+    const parsed = JSON.parse(raw) as unknown[];
+    const seen = new Set<string>();
+    for (const item of parsed) {
+      if (typeof item !== "string") continue;
+      const trimmed = item.trim();
+      if (!trimmed) continue;
+      const norm = normalizeCategory(trimmed);
+      if (!norm || seen.has(norm)) continue;
+      seen.add(norm);
+      categories.push(trimmed);
+    }
+  } catch {
+    return { ok: false, error: "Lista de categorías inválida." };
+  }
+
   try {
     const householdId = await getCurrentHouseholdId();
     const supabase = await createClient();
@@ -77,6 +157,21 @@ export async function saveTrickAction(
       id = data.id;
     }
 
+    if (trickId) {
+      await supabase.from("trick_category_links").delete().eq("trick_id", id);
+    }
+    if (categories.length > 0) {
+      const rows: Array<{ trick_id: string; category_id: string; position: number }> = [];
+      for (let i = 0; i < categories.length; i++) {
+        const categoryId = await findOrCreateTrickCategory(categories[i], householdId);
+        rows.push({ trick_id: id, category_id: categoryId, position: i });
+      }
+      const { error } = await supabase.from("trick_category_links").insert(rows);
+      if (error) throw new Error(error.message);
+    }
+
+    await cleanupOrphanedTrickCategories(householdId);
+
     revalidatePath("/trucos");
     revalidatePath(`/trucos/${id}`);
     return { ok: true, trickId: id };
@@ -89,9 +184,11 @@ export async function saveTrickAction(
 }
 
 export async function deleteTrickAction(trickId: string): Promise<void> {
+  const householdId = await getCurrentHouseholdId();
   const supabase = await createClient();
   const { error } = await supabase.from("tricks").delete().eq("id", trickId);
   if (error) throw new Error(error.message);
+  await cleanupOrphanedTrickCategories(householdId);
   revalidatePath("/trucos");
   redirect("/trucos");
 }

@@ -1,6 +1,8 @@
+import { listTrickCategories } from "@/lib/tricks/queries";
 import { TrickForm } from "../trick-form";
 
-export default function NewTrickPage() {
+export default async function NewTrickPage() {
+  const existingCategories = await listTrickCategories();
   return (
     <div>
       <div className="bg-band">
@@ -21,7 +23,9 @@ export default function NewTrickPage() {
             image_url: null,
             video_url: null,
             source_url: null,
+            categories: [],
           }}
+          existingCategories={existingCategories}
         />
       </div>
     </div>

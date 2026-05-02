@@ -31,9 +31,23 @@ export default async function TrickDetailPage({
             <ArrowLeft className="h-3 w-3" /> Trucos
           </Link>
           <div className="flex flex-wrap items-end justify-between gap-4">
-            <h1 className="text-4xl leading-[1.05] sm:text-5xl">
-              {trick.title}
-            </h1>
+            <div className="flex-1">
+              <h1 className="text-4xl leading-[1.05] sm:text-5xl">
+                {trick.title}
+              </h1>
+              {trick.categories.length > 0 ? (
+                <div className="mt-4 flex flex-wrap gap-1.5">
+                  {trick.categories.map((cat) => (
+                    <span
+                      key={cat.id}
+                      className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs"
+                    >
+                      {cat.name}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
             <div className="flex shrink-0 gap-2">
               <Button asChild variant="outline" size="sm">
                 <Link href={`/trucos/${trick.id}/editar`}>

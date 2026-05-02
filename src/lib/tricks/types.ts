@@ -1,3 +1,9 @@
+export type TrickCategory = {
+  id: string;
+  name: string;
+  normalized_name: string;
+};
+
 export type Trick = {
   id: string;
   title: string;
@@ -7,6 +13,7 @@ export type Trick = {
   source_url: string | null;
   created_at: string;
   updated_at: string;
+  categories: TrickCategory[];
 };
 
 export type TrickListItem = {
@@ -14,4 +21,5 @@ export type TrickListItem = {
   title: string;
   has_image: boolean;
   has_video: boolean;
+  categories: TrickCategory[];
 };
