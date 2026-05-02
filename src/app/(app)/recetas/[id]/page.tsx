@@ -7,7 +7,26 @@ import { getRecipe } from "@/lib/recipes/queries";
 import { getSignedPdfUrl } from "@/lib/recipes/pdf-storage";
 import { getSignedImageUrl } from "@/lib/recipes/image-storage";
 import { UNITS } from "@/lib/ingredients";
+import { startOfWeekMonday, toIsoDate } from "@/lib/menu-generator";
+import { getMenuByWeekStart } from "@/lib/menu-queries";
 import { DeleteRecipeButton } from "./delete-button";
+import { AddToMenuButton, type DayInfo } from "./add-to-menu-button";
+
+const MONTH_NAMES = [
+  "enero", "febrero", "marzo", "abril", "mayo", "junio",
+  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+];
+
+function formatWeekLabel(monday: Date): string {
+  const sunday = new Date(monday);
+  sunday.setUTCDate(sunday.getUTCDate() + 6);
+  const m1 = MONTH_NAMES[monday.getUTCMonth()];
+  const m2 = MONTH_NAMES[sunday.getUTCMonth()];
+  const d1 = monday.getUTCDate();
+  const d2 = sunday.getUTCDate();
+  if (m1 === m2) return `${d1}–${d2} de ${m1}`;
+  return `${d1} ${m1} – ${d2} ${m2}`;
+}
 
 const UNIT_LABEL = Object.fromEntries(UNITS.map((u) => [u.value, u.label]));
 
@@ -29,10 +48,23 @@ export default async function RecipeDetailPage({
       return a.position - b.position;
     });
 
-  const [pdfSignedUrl, imageSignedUrl] = await Promise.all([
+  const monday = startOfWeekMonday();
+  const weekStart = toIsoDate(monday);
+  const [pdfSignedUrl, imageSignedUrl, menuData] = await Promise.all([
     recipe.pdf_url ? getSignedPdfUrl(recipe.pdf_url) : Promise.resolve(null),
     recipe.image_url ? getSignedImageUrl(recipe.image_url) : Promise.resolve(null),
+    getMenuByWeekStart(weekStart),
   ]);
+
+  const days: DayInfo[] = Array.from({ length: 7 }, (_, i) => {
+    const item = menuData?.items.find((it) => it.day_of_week === i);
+    return {
+      dayIndex: i,
+      recipeId: item?.recipe.id ?? null,
+      recipeTitle: item?.recipe.title ?? null,
+    };
+  });
+  const weekLabel = formatWeekLabel(monday);
 
   return (
     <article className="container max-w-3xl px-4 py-10">
@@ -74,7 +106,13 @@ export default async function RecipeDetailPage({
             ) : null}
           </div>
         </div>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <AddToMenuButton
+            recipeId={recipe.id}
+            weekStart={weekStart}
+            weekLabel={weekLabel}
+            days={days}
+          />
           <Button asChild variant="outline" size="sm">
             <Link href={`/recetas/${recipe.id}/editar`}>
               <Pencil className="h-4 w-4" /> Editar
