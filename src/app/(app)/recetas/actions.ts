@@ -162,6 +162,27 @@ async function findOrCreateCategory(
   return created.id;
 }
 
+async function cleanupOrphanedCategories(householdId: string): Promise<void> {
+  const supabase = await createClient();
+  const { data: cats } = await supabase
+    .from("categories")
+    .select("id")
+    .eq("household_id", householdId);
+  if (!cats || cats.length === 0) return;
+
+  const ids = cats.map((c) => c.id);
+  const { data: used } = await supabase
+    .from("recipe_categories")
+    .select("category_id")
+    .in("category_id", ids);
+
+  const usedIds = new Set((used ?? []).map((r) => r.category_id));
+  const orphans = ids.filter((id) => !usedIds.has(id));
+  if (orphans.length === 0) return;
+
+  await supabase.from("categories").delete().in("id", orphans);
+}
+
 async function findOrCreateIngredient(
   name: string,
   category: IngredientCategory,
@@ -345,6 +366,8 @@ export async function saveRecipeAction(
       if (error) throw new Error(error.message);
     }
 
+    await cleanupOrphanedCategories(householdId);
+
     revalidatePath("/recetas");
     revalidatePath(`/recetas/${id}`);
     revalidatePath("/despensa");
@@ -356,9 +379,11 @@ export async function saveRecipeAction(
 }
 
 export async function deleteRecipeAction(recipeId: string): Promise<void> {
+  const householdId = await getCurrentHouseholdId();
   const supabase = await createClient();
   const { error } = await supabase.from("recipes").delete().eq("id", recipeId);
   if (error) throw new Error(error.message);
+  await cleanupOrphanedCategories(householdId);
   revalidatePath("/recetas");
   revalidatePath("/despensa");
   redirect("/recetas");
