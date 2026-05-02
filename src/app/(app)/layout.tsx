@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { SignOutButton } from "./sign-out-button";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 type NavItem = {
   href: string;
@@ -66,10 +67,11 @@ export default async function AppLayout({
               </Link>
             ))}
           </nav>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <span className="hidden text-xs text-muted-foreground sm:inline">
               {user.email}
             </span>
+            <ThemeToggle />
             <SignOutButton />
           </div>
         </div>
