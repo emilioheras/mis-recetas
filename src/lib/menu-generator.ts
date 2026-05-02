@@ -112,39 +112,6 @@ function pickOne(
   return weightedPick(candidates, seasonalNames, rng);
 }
 
-export function generateWeeklyMenu({
-  recipes,
-  seasonalNormalizedNames,
-  days = 7,
-  rng = Math.random,
-}: GenerateOpts): MenuCandidate[] {
-  if (recipes.length === 0) return [];
-
-  const result: MenuCandidate[] = [];
-  const mainHistory: (string | null)[] = [];
-  const categoryCounts = new Map<string, number>();
-  const pickedIds = new Set<string>();
-
-  for (let i = 0; i < days; i++) {
-    const picked = pickOne(
-      recipes,
-      mainHistory,
-      categoryCounts,
-      pickedIds,
-      seasonalNormalizedNames,
-      rng,
-    );
-    if (!picked) break;
-    result.push(picked);
-    mainHistory.push(picked.main_ingredient_normalized);
-    const cat = picked.main_ingredient_category ?? "otro";
-    categoryCounts.set(cat, (categoryCounts.get(cat) ?? 0) + 1);
-    pickedIds.add(picked.id);
-  }
-
-  return result;
-}
-
 /**
  * Reemplaza la receta del día `dayIndex` aplicando los mismos criterios pero
  * teniendo en cuenta los días vecinos del menú actual.

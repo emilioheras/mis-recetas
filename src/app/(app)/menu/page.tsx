@@ -1,19 +1,8 @@
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
-import {
-  getMenuByWeekStart,
-} from "@/lib/menu-queries";
+import { listRecipes } from "@/lib/recipes/queries";
+import { getMenuByWeekStart } from "@/lib/menu-queries";
 import { startOfWeekMonday, toIsoDate } from "@/lib/menu-generator";
 import { MenuView } from "./menu-view";
-import { GenerateMenuForm } from "./generate-form";
 
 const MONTH_NAMES = [
   "enero", "febrero", "marzo", "abril", "mayo", "junio",
@@ -38,8 +27,11 @@ async function getDefaultServings(): Promise<number> {
 export default async function MenuPage() {
   const monday = startOfWeekMonday();
   const weekStart = toIsoDate(monday);
-  const data = await getMenuByWeekStart(weekStart);
-  const defaultServings = await getDefaultServings();
+  const [data, defaultServings, recipes] = await Promise.all([
+    getMenuByWeekStart(weekStart),
+    getDefaultServings(),
+    listRecipes(),
+  ]);
 
   const weekLabel = formatWeekLabel(monday);
 
@@ -58,27 +50,13 @@ export default async function MenuPage() {
       </div>
 
       <div className="container max-w-4xl px-4 py-8">
-        {!data ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>Aún no has generado el menú de esta semana</CardTitle>
-              <CardDescription>
-                Eligiremos 7 recetas de tu colección, dándole prioridad a las
-                que tengan ingrediente principal de temporada y evitando que
-                se repita demasiado el mismo tipo de plato. Puedes cambiar
-                cualquier día sobre la marcha.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <GenerateMenuForm defaultServings={defaultServings} />
-              <p className="mt-4 text-xs text-muted-foreground">
-                ¿No tienes recetas? <Link href="/recetas/nueva" className="underline">Añade alguna primero</Link>.
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <MenuView menu={data.menu} items={data.items} />
-        )}
+        <MenuView
+          weekStart={weekStart}
+          menu={data?.menu ?? null}
+          items={data?.items ?? []}
+          defaultServings={defaultServings}
+          recipes={recipes}
+        />
       </div>
     </div>
   );
