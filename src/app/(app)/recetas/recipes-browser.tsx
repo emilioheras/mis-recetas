@@ -142,12 +142,20 @@ export function RecipesBrowser({ recipes }: Props) {
 
       {hasCategories ? (
         <div className="mb-6 md:hidden">
-          <label
-            htmlFor="category-mobile"
-            className="mb-1.5 block text-xs uppercase tracking-[0.2em] text-muted-foreground"
-          >
-            Categorías
-          </label>
+          <div className="mb-1.5 flex items-baseline justify-between">
+            <label
+              htmlFor="category-mobile"
+              className="block text-xs uppercase tracking-[0.2em] text-muted-foreground"
+            >
+              Categorías
+            </label>
+            <Link
+              href="/categorias"
+              className="text-xs text-muted-foreground transition-colors hover:text-primary"
+            >
+              Gestionar →
+            </Link>
+          </div>
           <select
             id="category-mobile"
             value={activeCategoryId ?? ""}
@@ -273,6 +281,12 @@ export function RecipesBrowser({ recipes }: Props) {
                 );
               })}
             </ul>
+            <Link
+              href="/categorias"
+              className="mt-5 inline-block text-xs text-muted-foreground transition-colors hover:text-primary"
+            >
+              Gestionar →
+            </Link>
           </aside>
         ) : null}
       </div>

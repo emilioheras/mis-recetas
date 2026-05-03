@@ -233,6 +233,33 @@ export async function listCategories(): Promise<Category[]> {
   return (data ?? []) as Category[];
 }
 
+export type CategoryWithCount = Category & { recipe_count: number };
+
+export async function listCategoriesWithRecipeCount(): Promise<CategoryWithCount[]> {
+  const supabase = await createClient();
+
+  const [catsRes, linksRes] = await Promise.all([
+    supabase
+      .from("categories")
+      .select("id, name, normalized_name")
+      .order("name", { ascending: true }),
+    supabase.from("recipe_categories").select("category_id"),
+  ]);
+
+  if (catsRes.error) throw catsRes.error;
+  if (linksRes.error) throw linksRes.error;
+
+  const counts = new Map<string, number>();
+  for (const row of linksRes.data ?? []) {
+    counts.set(row.category_id, (counts.get(row.category_id) ?? 0) + 1);
+  }
+
+  return (catsRes.data ?? []).map((c) => ({
+    ...(c as Category),
+    recipe_count: counts.get(c.id) ?? 0,
+  }));
+}
+
 export type PantryIngredient = {
   id: string;
   name: string;

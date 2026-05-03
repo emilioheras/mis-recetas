@@ -92,3 +92,30 @@ export async function listTrickCategories(): Promise<TrickCategory[]> {
   if (error) throw error;
   return (data ?? []) as TrickCategory[];
 }
+
+export type TrickCategoryWithCount = TrickCategory & { trick_count: number };
+
+export async function listTrickCategoriesWithCount(): Promise<TrickCategoryWithCount[]> {
+  const supabase = await createClient();
+
+  const [catsRes, linksRes] = await Promise.all([
+    supabase
+      .from("trick_categories")
+      .select("id, name, normalized_name")
+      .order("name", { ascending: true }),
+    supabase.from("trick_category_links").select("category_id"),
+  ]);
+
+  if (catsRes.error) throw catsRes.error;
+  if (linksRes.error) throw linksRes.error;
+
+  const counts = new Map<string, number>();
+  for (const row of linksRes.data ?? []) {
+    counts.set(row.category_id, (counts.get(row.category_id) ?? 0) + 1);
+  }
+
+  return (catsRes.data ?? []).map((c) => ({
+    ...(c as TrickCategory),
+    trick_count: counts.get(c.id) ?? 0,
+  }));
+}
