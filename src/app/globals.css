@@ -85,3 +85,18 @@
     font-family: var(--font-sans);
   }
 }
+
+/* En móvil (<768px) Firefox infla el texto pequeño automáticamente,
+   pero Chrome lo muestra al tamaño real (12-14px), que cuesta leer.
+   Subimos solo text-xs y text-sm en pantallas pequeñas; los encabezados
+   y el resto se quedan igual en todos los tamaños. */
+@media (max-width: 767px) {
+  .text-xs {
+    font-size: 13.5px;
+    line-height: 1.4;
+  }
+  .text-sm {
+    font-size: 15px;
+    line-height: 1.45;
+  }
+}
