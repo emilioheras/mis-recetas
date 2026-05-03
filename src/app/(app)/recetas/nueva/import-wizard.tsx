@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { YouTubeImportPanel } from "@/components/youtube-import-panel";
 import { cn } from "@/lib/utils";
 import type { Category, RecipeDraft } from "@/lib/recipes/types";
 import { RecipeForm } from "../recipe-form";
@@ -41,9 +41,6 @@ export function ImportWizard({
 }) {
   const [tab, setTab] = useState<TabId>("manual");
   const [url, setUrl] = useState("");
-  const [ytUrl, setYtUrl] = useState("");
-  const [ytTranscript, setYtTranscript] = useState("");
-  const [showManualTranscript, setShowManualTranscript] = useState(false);
   const [mdContent, setMdContent] = useState("");
   const [mdFilename, setMdFilename] = useState("");
   const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -58,9 +55,6 @@ export function ImportWizard({
     setDraft(null);
     setMdContent("");
     setMdFilename("");
-    setYtUrl("");
-    setYtTranscript("");
-    setShowManualTranscript(false);
     setPdfFile(null);
     setPdfUploaded(null);
   }
@@ -94,33 +88,6 @@ export function ImportWizard({
     setError(null);
     startTransition(async () => {
       const result = await importFromMarkdownAction(mdContent, mdFilename);
-      if (result.ok) {
-        setDraft(result.draft);
-      } else {
-        setError(result.error);
-      }
-    });
-  }
-
-  function handleExtractYouTube() {
-    setError(null);
-    startTransition(async () => {
-      const result = await importFromYouTubeAction(ytUrl);
-      if (result.ok) {
-        setDraft(result.draft);
-      } else {
-        setError(result.error);
-        // Si falla la extracción automática, abrimos el desplegable de
-        // transcripción manual para que el usuario lo vea sin scrollear.
-        setShowManualTranscript(true);
-      }
-    });
-  }
-
-  function handleExtractYouTubeText() {
-    setError(null);
-    startTransition(async () => {
-      const result = await importFromYouTubeTextAction(ytUrl, ytTranscript);
       if (result.ok) {
         setDraft(result.draft);
       } else {
@@ -266,95 +233,12 @@ export function ImportWizard({
       ) : null}
 
       {tab === "youtube" && !draft ? (
-        <Card>
-          <CardContent className="space-y-4 pt-6">
-            <div className="grid gap-2">
-              <Label htmlFor="yt-url">Enlace del vídeo</Label>
-              <Input
-                id="yt-url"
-                type="url"
-                placeholder="https://www.youtube.com/watch?v=..."
-                value={ytUrl}
-                onChange={(e) => setYtUrl(e.target.value)}
-                disabled={isPending}
-              />
-              <p className="text-xs text-muted-foreground">
-                Descargamos los subtítulos del vídeo y la IA los estructura.
-                El vídeo se mostrará embebido arriba en la receta.
-              </p>
-            </div>
-            {error ? (
-              <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                {error}
-              </p>
-            ) : null}
-            <Button
-              onClick={handleExtractYouTube}
-              disabled={isPending || ytUrl.trim().length === 0}
-            >
-              {isPending ? "Extrayendo… (10-20 s)" : "Extraer receta"}
-            </Button>
-
-            <div className="border-t pt-4">
-              <button
-                type="button"
-                onClick={() => setShowManualTranscript((v) => !v)}
-                className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-              >
-                {showManualTranscript
-                  ? "Ocultar opción manual"
-                  : "¿No funciona? Pega la transcripción a mano"}
-              </button>
-
-              {showManualTranscript ? (
-                <div className="mt-4 space-y-3">
-                  <div className="rounded-md bg-accent p-3 text-xs leading-relaxed">
-                    <p className="mb-1 font-medium">Cómo conseguir la transcripción</p>
-                    <ol className="ml-4 list-decimal space-y-0.5">
-                      <li>
-                        Abre el vídeo en YouTube. Bajo el título, pulsa los
-                        tres puntos <strong>...</strong> (o &quot;Más&quot;).
-                      </li>
-                      <li>
-                        Pulsa <strong>&quot;Mostrar transcripción&quot;</strong>.
-                      </li>
-                      <li>
-                        En el panel que se abre a la derecha, haz clic dentro,
-                        Ctrl+A para seleccionar todo y Ctrl+C para copiar.
-                      </li>
-                      <li>Pégala aquí abajo.</li>
-                    </ol>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="yt-transcript">Transcripción del vídeo</Label>
-                    <Textarea
-                      id="yt-transcript"
-                      rows={8}
-                      placeholder="0:00 hola a todos hoy vamos a preparar..."
-                      value={ytTranscript}
-                      onChange={(e) => setYtTranscript(e.target.value)}
-                      disabled={isPending}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      No te preocupes por las marcas de tiempo (0:00, 1:23…),
-                      la IA las ignora.
-                    </p>
-                  </div>
-                  <Button
-                    onClick={handleExtractYouTubeText}
-                    disabled={
-                      isPending
-                      || ytUrl.trim().length === 0
-                      || ytTranscript.trim().length < 100
-                    }
-                  >
-                    {isPending ? "Extrayendo…" : "Extraer desde transcripción"}
-                  </Button>
-                </div>
-              ) : null}
-            </div>
-          </CardContent>
-        </Card>
+        <YouTubeImportPanel<RecipeDraft>
+          noun="receta"
+          extractAuto={importFromYouTubeAction}
+          extractManual={importFromYouTubeTextAction}
+          onSuccess={setDraft}
+        />
       ) : null}
 
       {draft && tab !== "manual" ? (
