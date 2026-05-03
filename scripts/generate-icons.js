@@ -1,12 +1,9 @@
 /**
  * Genera todos los iconos a partir de scripts/source-icon.svg.
  *
- * El SVG original es un único <path> con varios subpaths (separados por
- * comandos "M" mayúsculos). Por las coordenadas, los subpaths que empiezan
- * en X≈500 (lado derecho del lienzo) corresponden al tenedor, y el resto
- * al gorro de chef. Aplicamos color terracota solo al tenedor y negro al
- * resto, manteniendo el fill-rule "evenodd" para que los huecos del gorro
- * sigan siendo huecos.
+ * El SVG fuente es un único <path> negro sobre lienzo 1024×1024 (un bowl con
+ * palillos). Lo escalamos sobre fondos cream/transparente con padding y
+ * radio variables segun el destino.
  *
  * Salida:
  *   src/app/icon.png             1024x1024 transparente (favicon, /icon)
@@ -26,42 +23,20 @@ const ROOT = path.resolve(__dirname, "..");
 const SOURCE = path.join(ROOT, "scripts", "source-icon.svg");
 
 const CREAM = "#FAFAF7";
-const TERRACOTA = "#AB3E1A";
 const BLACK = "#000000";
+const SOURCE_VIEWBOX = 1024;
 
-// Lee el path del SVG fuente y lo separa en subpaths.
-function loadSubpaths() {
+function loadPathD() {
   const svg = fs.readFileSync(SOURCE, "utf8");
   const dMatch = svg.match(/<path[^>]*\sd="([^"]+)"/);
   if (!dMatch) throw new Error("No se encontró <path> en el SVG fuente.");
-  const d = dMatch[1].replace(/\s+/g, " ").trim();
-  const subpaths = [];
-  let last = 0;
-  for (let i = 1; i < d.length; i++) {
-    if (d[i] === "M") {
-      subpaths.push(d.substring(last, i).trim());
-      last = i;
-    }
-  }
-  subpaths.push(d.substring(last).trim());
-  return subpaths;
+  return dMatch[1].replace(/\s+/g, " ").trim();
 }
 
-// El subpath 8 (M493.0,205.9) rellena el interior del tenedor.
-// Los demás (0-7) forman el outline del icono completo + los huecos
-// internos del gorro de chef. Se identificó visualmente con
-// scripts/debug-subpaths.js.
-const FORK_FILL_INDEX = 8;
-
 function buildSvg({ size, padding, bgRadius, bgColor }) {
-  const subpaths = loadSubpaths();
-  const forkD = subpaths[FORK_FILL_INDEX] ?? "";
-  const restD = subpaths
-    .filter((_, i) => i !== FORK_FILL_INDEX)
-    .join(" ");
-
+  const d = loadPathD();
   const innerSize = size - 2 * padding;
-  const scale = innerSize / 512;
+  const scale = innerSize / SOURCE_VIEWBOX;
 
   const bg = bgColor
     ? `<rect width="${size}" height="${size}" rx="${bgRadius}" fill="${bgColor}"/>`
@@ -70,8 +45,7 @@ function buildSvg({ size, padding, bgRadius, bgColor }) {
   return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
     ${bg}
     <g transform="translate(${padding}, ${padding}) scale(${scale})">
-      <path d="${restD}" fill="${BLACK}" fill-rule="evenodd"/>
-      <path d="${forkD}" fill="${TERRACOTA}" fill-rule="evenodd"/>
+      <path d="${d}" fill="${BLACK}" fill-rule="evenodd"/>
     </g>
   </svg>`;
 }
