@@ -23,3 +23,10 @@ export type TrickListItem = {
   has_video: boolean;
   categories: TrickCategory[];
 };
+
+export type TrickDraft = {
+  title: string;
+  notes: string;
+  video_url: string | null;
+  source_url: string | null;
+};

@@ -1,7 +1,8 @@
 import { Innertube } from "youtubei.js";
 import { YoutubeTranscript } from "youtube-transcript";
-import { extractRecipeFromText } from "@/lib/ai/llm";
+import { extractRecipeFromText, extractTrickFromText } from "@/lib/ai/llm";
 import type { RecipeDraft } from "@/lib/recipes/types";
+import type { TrickDraft } from "@/lib/tricks/types";
 
 function extractVideoId(url: string): string | null {
   try {
@@ -142,4 +143,43 @@ export async function importFromYouTubeText(
   }
   const videoUrl = canonicalVideoUrl(id);
   return extractRecipeFromText(cleaned, { videoUrl });
+}
+
+export async function importTrickFromYouTube(url: string): Promise<TrickDraft> {
+  const id = extractVideoId(url);
+  if (!id) {
+    throw new Error(
+      "La URL no parece de YouTube. Pega un enlace de un vídeo (youtube.com/watch?v=… o youtu.be/…).",
+    );
+  }
+
+  try {
+    const text = await fetchTranscriptText(id);
+    const videoUrl = canonicalVideoUrl(id);
+    return await extractTrickFromText(text, { videoUrl });
+  } catch {
+    throw new Error(
+      "No hemos podido leer los subtítulos automáticamente. Si el vídeo los tiene, copia la transcripción a mano y pégala abajo.",
+    );
+  }
+}
+
+export async function importTrickFromYouTubeText(
+  url: string,
+  transcriptText: string,
+): Promise<TrickDraft> {
+  const id = extractVideoId(url);
+  if (!id) {
+    throw new Error(
+      "La URL no parece de YouTube. Pega un enlace de un vídeo (youtube.com/watch?v=… o youtu.be/…).",
+    );
+  }
+  const cleaned = transcriptText.replace(/\s+/g, " ").trim();
+  if (cleaned.length < 100) {
+    throw new Error(
+      "La transcripción es demasiado corta para extraer un truco.",
+    );
+  }
+  const videoUrl = canonicalVideoUrl(id);
+  return extractTrickFromText(cleaned, { videoUrl });
 }

@@ -1,5 +1,5 @@
 import { listTrickCategories } from "@/lib/tricks/queries";
-import { TrickForm } from "../trick-form";
+import { TrickImportWizard } from "./import-wizard";
 
 export default async function NewTrickPage() {
   const existingCategories = await listTrickCategories();
@@ -15,18 +15,7 @@ export default async function NewTrickPage() {
       </div>
 
       <div className="container max-w-3xl px-4 py-8">
-        <TrickForm
-          trickId={null}
-          initial={{
-            title: "",
-            notes: "",
-            image_url: null,
-            video_url: null,
-            source_url: null,
-            categories: [],
-          }}
-          existingCategories={existingCategories}
-        />
+        <TrickImportWizard existingCategories={existingCategories} />
       </div>
     </div>
   );

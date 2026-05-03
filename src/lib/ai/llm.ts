@@ -1,5 +1,6 @@
 import Groq from "groq-sdk";
 import type { RecipeDraft } from "@/lib/recipes/types";
+import type { TrickDraft } from "@/lib/tricks/types";
 import type { IngredientCategory, Unit } from "@/lib/ingredients";
 
 const MODEL = "llama-3.3-70b-versatile";
@@ -157,5 +158,65 @@ function normalizeDraft(
     source_url: context?.sourceUrl ?? null,
     video_url: context?.videoUrl ?? null,
     pdf_url: null,
+  };
+}
+
+const TRICK_SYSTEM_PROMPT = `Eres un asistente que extrae trucos y consejos de cocina y los estructura en JSON.
+
+Devuelve SIEMPRE un objeto JSON con EXACTAMENTE esta estructura (sin texto antes ni después):
+
+{
+  "title": "título corto del truco en español, ej. 'Cómo afilar un cuchillo'",
+  "notes": "explicación del truco en español en formato Markdown. Pasos numerados ('1. ...\\n2. ...') o bullets ('- ...'), conciso pero completo."
+}
+
+REGLAS:
+- El título debe ser corto (3-10 palabras), descriptivo, sin clickbait.
+- Las notas explican CÓMO se hace el truco, no la receta entera. Si el vídeo es una receta, extrae solo el TRUCO o consejo central, no los pasos completos.
+- Ignora introducciones, despedidas y peticiones de suscripción.
+- Si el texto no describe ningún truco/consejo concreto, devuelve title="No se ha podido extraer el truco" y notes="".
+- Responde SOLO con el JSON, sin explicaciones adicionales.`;
+
+export async function extractTrickFromText(
+  text: string,
+  context?: { sourceUrl?: string; videoUrl?: string },
+): Promise<TrickDraft> {
+  const client = getClient();
+
+  const userParts: string[] = [
+    "Extrae el truco del siguiente texto:\n\n",
+    text.slice(0, 18000),
+  ];
+  if (context?.sourceUrl) userParts.push(`\n\nURL: ${context.sourceUrl}`);
+  if (context?.videoUrl) userParts.push(`\n\nVídeo: ${context.videoUrl}`);
+
+  const completion = await client.chat.completions.create({
+    model: MODEL,
+    messages: [
+      { role: "system", content: TRICK_SYSTEM_PROMPT },
+      { role: "user", content: userParts.join("") },
+    ],
+    response_format: { type: "json_object" },
+    temperature: 0.2,
+  });
+
+  const raw = completion.choices[0]?.message?.content;
+  if (!raw) {
+    throw new Error("La IA no devolvió respuesta.");
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error("La IA devolvió una respuesta que no es JSON válido.");
+  }
+
+  const r = (parsed ?? {}) as { title?: string; notes?: string };
+  return {
+    title: (r.title ?? "").trim() || "Sin título",
+    notes: (r.notes ?? "").trim(),
+    video_url: context?.videoUrl ?? null,
+    source_url: context?.sourceUrl ?? null,
   };
 }
