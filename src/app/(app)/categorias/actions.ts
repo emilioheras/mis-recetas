@@ -64,6 +64,53 @@ async function renameCategoryGeneric(
   }
 }
 
+async function createCategoryGeneric(
+  table: "categories" | "trick_categories",
+  rawName: string,
+): Promise<Result> {
+  const name = rawName.trim();
+  if (!name) return { ok: false, error: "El nombre no puede estar vacío." };
+
+  const normalized = normalizeCategory(name);
+  if (!normalized) {
+    return { ok: false, error: "El nombre no es válido." };
+  }
+
+  try {
+    const householdId = await getCurrentHouseholdId();
+    const supabase = await createClient();
+
+    const { data: existing, error: existingError } = await supabase
+      .from(table)
+      .select("id")
+      .eq("household_id", householdId)
+      .eq("normalized_name", normalized)
+      .maybeSingle();
+
+    if (existingError) return { ok: false, error: existingError.message };
+    if (existing) {
+      return {
+        ok: false,
+        error: `Ya existe una categoría con el nombre "${name}".`,
+      };
+    }
+
+    const { error } = await supabase.from(table).insert({
+      household_id: householdId,
+      name,
+      normalized_name: normalized,
+    });
+    if (error) return { ok: false, error: error.message };
+
+    return { ok: true };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Error desconocido",
+    };
+  }
+}
+
 async function deleteCategoryGeneric(
   table: "categories" | "trick_categories",
   linkTable: "recipe_categories" | "trick_category_links",
@@ -93,6 +140,28 @@ async function deleteCategoryGeneric(
       error: err instanceof Error ? err.message : "Error desconocido",
     };
   }
+}
+
+export async function createRecipeCategoryAction(
+  name: string,
+): Promise<Result> {
+  const res = await createCategoryGeneric("categories", name);
+  if (res.ok) {
+    revalidatePath("/categorias");
+    revalidatePath("/recetas");
+  }
+  return res;
+}
+
+export async function createTrickCategoryAction(
+  name: string,
+): Promise<Result> {
+  const res = await createCategoryGeneric("trick_categories", name);
+  if (res.ok) {
+    revalidatePath("/categorias");
+    revalidatePath("/trucos");
+  }
+  return res;
 }
 
 export async function renameRecipeCategoryAction(

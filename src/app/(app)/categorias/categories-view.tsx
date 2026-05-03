@@ -2,11 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2, Check, X } from "lucide-react";
+import { Pencil, Plus, Trash2, Check, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { CategoryWithCount } from "@/lib/recipes/queries";
 import type { TrickCategoryWithCount } from "@/lib/tricks/queries";
 import {
+  createRecipeCategoryAction,
+  createTrickCategoryAction,
   deleteRecipeCategoryAction,
   deleteTrickCategoryAction,
   renameRecipeCategoryAction,
@@ -55,13 +58,17 @@ export function CategoriesView({ recipeCategories, trickCategories }: Props) {
     <div className="grid gap-8 md:grid-cols-2">
       <Section
         title="Recetas"
+        kind="recipe"
         rows={recipeRows}
         emptyText="Aún no has creado ninguna categoría de receta."
+        placeholder="Cremas, Ensaladas, Navidad…"
       />
       <Section
         title="Trucos"
+        kind="trick"
         rows={trickRows}
         emptyText="Aún no has creado ninguna categoría de truco."
+        placeholder="Cuchillos, Conservación…"
       />
     </div>
   );
@@ -69,18 +76,23 @@ export function CategoriesView({ recipeCategories, trickCategories }: Props) {
 
 function Section({
   title,
+  kind,
   rows,
   emptyText,
+  placeholder,
 }: {
   title: string;
+  kind: Kind;
   rows: Row[];
   emptyText: string;
+  placeholder: string;
 }) {
   return (
     <section>
       <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-foreground">
         {title}
       </h2>
+      <AddCategoryForm kind={kind} placeholder={placeholder} />
       {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">{emptyText}</p>
       ) : (
@@ -91,6 +103,63 @@ function Section({
         </ul>
       )}
     </section>
+  );
+}
+
+function AddCategoryForm({
+  kind,
+  placeholder,
+}: {
+  kind: Kind;
+  placeholder: string;
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [name, setName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setError(null);
+    startTransition(async () => {
+      const action =
+        kind === "recipe"
+          ? createRecipeCategoryAction
+          : createTrickCategoryAction;
+      const res = await action(trimmed);
+      if (res.ok) {
+        setName("");
+        router.refresh();
+      } else {
+        setError(res.error);
+      }
+    });
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="mb-4 flex flex-col gap-1.5">
+      <div className="flex gap-2">
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={placeholder}
+          disabled={isPending}
+          aria-label="Nueva categoría"
+          className="h-9 flex-1"
+        />
+        <Button
+          type="submit"
+          size="sm"
+          variant="outline"
+          disabled={isPending || !name.trim()}
+        >
+          <Plus className="h-4 w-4" /> Añadir
+        </Button>
+      </div>
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+    </form>
   );
 }
 
