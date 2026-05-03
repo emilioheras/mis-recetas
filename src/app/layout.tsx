@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Figtree } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -13,6 +13,19 @@ const figtree = Figtree({
 export const metadata: Metadata = {
   title: "Mis Recetas",
   description: "Tus recetas, ordenadas y a mano.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Mis Recetas",
+    statusBarStyle: "default",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#AB3E1A" },
+    { media: "(prefers-color-scheme: dark)", color: "#14110F" },
+  ],
 };
 
 export default function RootLayout({
