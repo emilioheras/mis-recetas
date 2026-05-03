@@ -45,3 +45,6 @@ next-env.d.ts
 
 # Claude Code
 .claude/
+
+# Documentación interna (manual y reporte de desarrollo) — solo local.
+/docs/
