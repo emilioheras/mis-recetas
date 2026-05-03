@@ -26,6 +26,15 @@ export default async function CompraPage() {
             Lo que vas a necesitar
           </p>
           <h1 className="text-4xl sm:text-5xl">Lista de la compra</h1>
+          {menuData ? (
+            <p className="mt-3 text-xs text-foreground/70">
+              Cantidades escaladas a{" "}
+              {menuData.menu.servings === 1
+                ? "1 comensal"
+                : `${menuData.menu.servings} comensales`}
+              .
+            </p>
+          ) : null}
         </div>
       </div>
 
