@@ -41,8 +41,17 @@ export function AddToMenuButton({
     return () => document.removeEventListener("keydown", onKey);
   }, [open, isPending]);
 
+  /* useEffect(() => {
+    if (!open) {
+      setError(null);
+      setJustAssignedDay(null);
+    }
+  }, [open]); */
+
+  // Limpiamos el resultado anterior cuando se cierra el modal.
   useEffect(() => {
     if (!open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setError(null);
       setJustAssignedDay(null);
     }

@@ -27,8 +27,17 @@ export function RecipePickerModal({
     null,
   );
 
+  /* useEffect(() => {
+    if (!open) {
+      setQuery("");
+      setActiveIngredientId(null);
+    }
+  }, [open]); */
+
+// Reiniciamos los filtros al cerrar el modal para la próxima apertura.
   useEffect(() => {
     if (!open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setQuery("");
       setActiveIngredientId(null);
     }

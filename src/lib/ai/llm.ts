@@ -3,7 +3,8 @@ import type { RecipeDraft } from "@/lib/recipes/types";
 import type { TrickDraft } from "@/lib/tricks/types";
 import type { IngredientCategory, Unit } from "@/lib/ingredients";
 
-const MODEL = "llama-3.3-70b-versatile";
+// Modelo de Groq para la extracción de recetas y trucos.
+const MODEL = "openai/gpt-oss-120b";
 
 function getClient() {
   const key = process.env.GROQ_API_KEY;

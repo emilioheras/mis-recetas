@@ -110,7 +110,7 @@ export async function saveTrickAction(
   const source_url = String(formData.get("source_url") ?? "").trim() || null;
   const image_url = String(formData.get("image_url") ?? "").trim() || null;
 
-  let categories: string[] = [];
+  const categories: string[] = [];
   try {
     const raw = String(formData.get("categories") ?? "[]");
     const parsed = JSON.parse(raw) as unknown[];

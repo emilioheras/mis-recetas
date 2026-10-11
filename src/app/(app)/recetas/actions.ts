@@ -87,7 +87,7 @@ function parsePayload(formData: FormData): RawPayload | { error: string } {
     return { error: "Solo un ingrediente puede ser el principal." };
   }
 
-  let categories: string[] = [];
+  const categories: string[] = [];
   try {
     const raw = String(formData.get("categories") ?? "[]");
     const parsed = JSON.parse(raw) as unknown[];

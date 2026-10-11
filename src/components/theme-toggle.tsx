@@ -9,7 +9,13 @@ export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
+  /* useEffect(() => {
+    setMounted(true);
+  }, []); */
+
+    useEffect(() => {
+    // Esperamos al montaje para evitar discrepancias de hidratación.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
